@@ -5,20 +5,23 @@
  */
 
 import React, { useState } from 'react';
-import { 
-  View, 
-  Text, 
-  StyleSheet, 
-  ScrollView, 
-  TouchableOpacity, 
+import {
+  View,
+  Text,
+  StyleSheet,
+  ScrollView,
+  TouchableOpacity,
   TextInput,
   ActivityIndicator,
-  Alert
+  Alert,
+  Modal,
+  KeyboardAvoidingView,
+  Platform as RNPlatform,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { Colors } from '../theme/colors';
 import PreviewTable from './PreviewTable';
-import { generateExcel } from '../utils/excelWriter';
+import { generateExcel, UNMATCHED_BASE_COLOR } from '../utils/excelWriter';
 
 // Opciones de paletas premium para columnas nuevas
 const HIGHLIGHT_PALETTE = [
@@ -48,9 +51,12 @@ export default function Step6Download({
   columnFormats,
   preserveColors,
   rowColorMap,
+  baseFileRawBytes,
   onRestart,
   onBack,
 }) {
+  const defaultBaseName = () => baseFile?.name?.replace(/\.[^/.]+$/, '') || 'Resultado';
+
   const [sheetName, setSheetName] = useState(() => {
     const now = new Date();
     const month = String(now.getMonth() + 1).padStart(2, '0');
@@ -63,9 +69,16 @@ export default function Step6Download({
   const [highlightColor, setHighlightColor] = useState('#FFA500');
   const [unmatchedColor, setUnmatchedColor] = useState('#991F72');
   const [generating, setGenerating] = useState(false);
+  const [appendUnmatchedBaseToEnd, setAppendUnmatchedBaseToEnd] = useState(false);
+
+  // Modal para nombre del archivo resultante
+  const [fileNameModalVisible, setFileNameModalVisible] = useState(false);
+  const [outputFileName, setOutputFileName] = useState(defaultBaseName);
 
   const handleGenerateAndShare = async () => {
     setGenerating(true);
+    // Dejar que el spinner se renderice antes de iniciar trabajo pesado
+    await new Promise(resolve => setTimeout(resolve, 80));
     try {
       await generateExcel(
         baseFile.uri,
@@ -78,7 +91,10 @@ export default function Step6Download({
         sheetName,
         columnFormats,
         preserveColors || [],
-        rowColorMap || {}
+        rowColorMap || {},
+        baseFileRawBytes || null,
+        outputFileName || null,
+        appendUnmatchedBaseToEnd,
       );
     } catch (error) {
       console.error('Error al generar Excel:', error);
@@ -99,6 +115,14 @@ export default function Step6Download({
       </Text>
 
       <ScrollView style={styles.scrollView} showsVerticalScrollIndicator={false}>
+        {/* Nombre del archivo resultante */}
+        <Text style={styles.label}>Nombre del Archivo Resultante</Text>
+        <TouchableOpacity style={styles.inputContainer} onPress={() => setFileNameModalVisible(true)}>
+          <Ionicons name="save-outline" size={18} color={Colors.textMuted} style={styles.inputIcon} />
+          <Text style={styles.inputDisplayText} numberOfLines={1}>{outputFileName || defaultBaseName()}.xlsx</Text>
+          <Ionicons name="pencil-outline" size={16} color={Colors.textMuted} />
+        </TouchableOpacity>
+
         {/* Nombre del nuevo sheet */}
         <Text style={styles.label}>Nombre de la Nueva Pestaña</Text>
         <View style={styles.inputContainer}>
@@ -109,7 +133,7 @@ export default function Step6Download({
             onChangeText={setSheetName}
             placeholder="Resultado_Combinacion"
             placeholderTextColor={Colors.textMuted}
-            maxLength={31} // Limite de Excel para pestañas
+            maxLength={31}
           />
         </View>
 
@@ -178,8 +202,29 @@ export default function Step6Download({
           </View>
           <View style={styles.statRow}>
             <Text style={styles.statLabel}>Filas base sin coincidencia:</Text>
-            <Text style={styles.statValue}>{stats.unmatchedBaseRows}</Text>
+            <View style={styles.statRowRight}>
+              <Text style={styles.statValue}>{stats.unmatchedBaseRows}</Text>
+              {stats.unmatchedBaseRows > 0 && (
+                <TouchableOpacity
+                  style={styles.checkboxRow}
+                  onPress={() => setAppendUnmatchedBaseToEnd(v => !v)}
+                >
+                  <View style={[styles.checkbox, appendUnmatchedBaseToEnd && styles.checkboxChecked]}>
+                    {appendUnmatchedBaseToEnd && <Ionicons name="checkmark" size={12} color="#FFF" />}
+                  </View>
+                  <Text style={styles.checkboxLabel}>Agregar al final</Text>
+                </TouchableOpacity>
+              )}
+            </View>
           </View>
+          {stats.unmatchedBaseRows > 0 && (
+            <View style={styles.unmatchedBaseHint}>
+              <View style={[styles.colorDot, { backgroundColor: UNMATCHED_BASE_COLOR }]} />
+              <Text style={styles.unmatchedBaseHintText}>
+                Las filas sin coincidencia con datos nuevos tendrán este color
+              </Text>
+            </View>
+          )}
           <View style={styles.statRow}>
             <Text style={[styles.statLabel, { color: Colors.warning }]}>Filas nuevas agregadas al final:</Text>
             <Text style={[styles.statValue, { color: Colors.warning }]}>{stats.unmatchedMergeRowsAdded}</Text>
@@ -207,6 +252,69 @@ export default function Step6Download({
         </TouchableOpacity>
         <View style={{ height: 24 }} />
       </ScrollView>
+
+      {/* Modal: carga full-screen bloqueante */}
+      <Modal visible={generating} transparent animationType="fade">
+        <View style={styles.loadingOverlay}>
+          <View style={styles.loadingBox}>
+            <ActivityIndicator size="large" color={Colors.primary} />
+            <Text style={styles.loadingText}>Generando archivo...</Text>
+          </View>
+        </View>
+      </Modal>
+
+      {/* Modal: nombre del archivo resultante */}
+      <Modal
+        visible={fileNameModalVisible}
+        animationType="slide"
+        transparent={false}
+        onRequestClose={() => setFileNameModalVisible(false)}
+      >
+        <KeyboardAvoidingView
+          style={styles.modalContainer}
+          behavior={RNPlatform.OS === 'ios' ? 'padding' : 'height'}
+        >
+          <View style={styles.modalHeader}>
+            <Text style={styles.modalTitle}>Nombre del Archivo</Text>
+            <TouchableOpacity onPress={() => setFileNameModalVisible(false)}>
+              <Ionicons name="close" size={24} color={Colors.text} />
+            </TouchableOpacity>
+          </View>
+
+          <Text style={styles.modalSubtitle}>
+            Escribe el nombre que tendrá el archivo Excel resultante (sin extensión).
+          </Text>
+
+          <View style={styles.modalInputContainer}>
+            <TextInput
+              style={styles.modalInput}
+              value={outputFileName}
+              onChangeText={setOutputFileName}
+              placeholder={defaultBaseName()}
+              placeholderTextColor={Colors.textMuted}
+              autoFocus
+              autoCapitalize="none"
+              returnKeyType="done"
+              onSubmitEditing={() => setFileNameModalVisible(false)}
+            />
+            <Text style={styles.modalExtension}>.xlsx</Text>
+          </View>
+
+          <TouchableOpacity
+            style={styles.modalConfirmBtn}
+            onPress={() => setFileNameModalVisible(false)}
+          >
+            <Text style={styles.modalConfirmText}>Confirmar</Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            style={styles.modalResetBtn}
+            onPress={() => { setOutputFileName(defaultBaseName()); }}
+          >
+            <Text style={styles.modalResetText}>Restablecer nombre original</Text>
+          </TouchableOpacity>
+        </KeyboardAvoidingView>
+      </Modal>
 
       {/* Botones de navegación inferior */}
       <View style={styles.navigationRow}>
@@ -338,6 +446,75 @@ const styles = StyleSheet.create({
     borderColor: 'rgba(255,255,255,0.05)',
     paddingTop: 8,
   },
+  statRowRight: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+  },
+  checkboxRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
+  },
+  checkbox: {
+    width: 18,
+    height: 18,
+    borderRadius: 4,
+    borderWidth: 1.5,
+    borderColor: Colors.textMuted,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  checkboxChecked: {
+    backgroundColor: Colors.primary,
+    borderColor: Colors.primary,
+  },
+  checkboxLabel: {
+    fontSize: 11,
+    color: Colors.textMuted,
+  },
+  unmatchedBaseHint: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    paddingVertical: 6,
+    paddingHorizontal: 4,
+    backgroundColor: 'rgba(122, 104, 105, 0.12)',
+    borderRadius: 8,
+  },
+  colorDot: {
+    width: 14,
+    height: 14,
+    borderRadius: 7,
+    flexShrink: 0,
+  },
+  unmatchedBaseHintText: {
+    fontSize: 11,
+    color: Colors.textMuted,
+    flex: 1,
+  },
+  loadingOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.8)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  loadingBox: {
+    backgroundColor: Colors.backgroundLight,
+    padding: 28,
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: Colors.cardBorder,
+    alignItems: 'center',
+    gap: 16,
+    width: 240,
+  },
+  loadingText: {
+    color: Colors.text,
+    fontSize: 13,
+    fontWeight: '600',
+    textAlign: 'center',
+  },
   restartBtn: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -405,5 +582,79 @@ const styles = StyleSheet.create({
     color: '#FFF',
     fontSize: 14,
     fontWeight: 'bold',
+  },
+  inputDisplayText: {
+    flex: 1,
+    color: Colors.text,
+    fontSize: 14,
+  },
+  // Modal de nombre de archivo
+  modalContainer: {
+    flex: 1,
+    backgroundColor: Colors.background,
+    paddingHorizontal: 24,
+    paddingTop: 60,
+    paddingBottom: 40,
+  },
+  modalHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 16,
+  },
+  modalTitle: {
+    fontSize: 22,
+    fontWeight: 'bold',
+    color: Colors.text,
+  },
+  modalSubtitle: {
+    fontSize: 14,
+    color: Colors.textMuted,
+    marginBottom: 32,
+    lineHeight: 20,
+  },
+  modalInputContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: Colors.backgroundLight,
+    borderWidth: 1,
+    borderColor: Colors.primary,
+    borderRadius: 12,
+    paddingHorizontal: 16,
+    height: 56,
+    marginBottom: 24,
+  },
+  modalInput: {
+    flex: 1,
+    color: Colors.text,
+    fontSize: 16,
+  },
+  modalExtension: {
+    color: Colors.textMuted,
+    fontSize: 16,
+    marginLeft: 4,
+  },
+  modalConfirmBtn: {
+    height: 52,
+    borderRadius: 26,
+    backgroundColor: Colors.primary,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 16,
+  },
+  modalConfirmText: {
+    color: '#FFF',
+    fontSize: 16,
+    fontWeight: 'bold',
+  },
+  modalResetBtn: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: 12,
+  },
+  modalResetText: {
+    color: Colors.textMuted,
+    fontSize: 13,
+    textDecorationLine: 'underline',
   },
 });

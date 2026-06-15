@@ -64,17 +64,21 @@ export default function HomeScreen() {
   const [rowColorMap, setRowColorMap] = useState<Record<number, string>>({});
   const [preserveColors, setPreserveColors] = useState<string[]>([]);
 
+  // Bytes cacheados del archivo base (evita releer del disco al exportar)
+  const [baseFileRawBytes, setBaseFileRawBytes] = useState<Uint8Array | null>(null);
+
   // Paso 1: Archivo seleccionado
   const handleFileSelected = async (isBase: boolean, file: any) => {
     setLoading(true);
     setLoadingMessage(isBase ? 'Analizando archivo Principal...' : 'Analizando archivo de Datos Nuevos...');
     try {
-      const wb = await parseExcelFile(file.uri);
+      const { workbook: wb, rawBytes } = await parseExcelFile(file.uri);
       if (isBase) {
         setBaseFile(file);
         setBaseWorkbook(wb);
         setBaseSheets(wb.SheetNames);
         setSelectedBaseSheet(wb.SheetNames[0] || '');
+        setBaseFileRawBytes(rawBytes);
       } else {
         setMergeFile(file);
         setMergeWorkbook(wb);
@@ -186,6 +190,7 @@ export default function HomeScreen() {
     setColorPalette([]);
     setRowColorMap({});
     setPreserveColors([]);
+    setBaseFileRawBytes(null);
   };
 
   return (
@@ -273,6 +278,7 @@ export default function HomeScreen() {
             columnFormats={columnFormats}
             preserveColors={preserveColors}
             rowColorMap={rowColorMap}
+            baseFileRawBytes={baseFileRawBytes}
             onRestart={handleRestart}
             onBack={() => setStep(6)}
           />

@@ -28,6 +28,7 @@ export async function parseExcelFile(fileUri) {
         cellFormulas: true,
         cellNF: true,
       });
+      return { workbook, rawBytes: null };
     } else {
       console.log(`[excelParser] Intentando leer archivo en móvil con la API moderna de File. URI: ${fileUri}`);
       
@@ -41,7 +42,7 @@ export async function parseExcelFile(fileUri) {
       // Leer el archivo como Uint8Array de forma eficiente en memoria
       const uint8Array = await file.bytes();
       console.log(`[excelParser] Archivo leído con éxito (${uint8Array.length} bytes). Parseando con SheetJS...`);
-      
+
       // Parsear el Uint8Array con SheetJS usando type: 'array'
       workbook = XLSX.read(uint8Array, {
         type: 'array',
@@ -49,11 +50,12 @@ export async function parseExcelFile(fileUri) {
         cellFormulas: true,
         cellNF: true,
       });
-      
+
       console.log(`[excelParser] Archivo Excel parseado con éxito.`);
+      return { workbook, rawBytes: uint8Array };
     }
-    
-    return workbook;
+
+    return { workbook, rawBytes: null };
   } catch (error) {
     console.error('Error al leer/parsear Excel:', error);
     // Proporcionar detalles adicionales si es posible para depurar
