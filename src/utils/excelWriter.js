@@ -4,7 +4,7 @@
  */
 
 import ExcelJS from 'exceljs';
-import * as FileSystem from 'expo-file-system';
+import { File as ExpoFile, Paths } from 'expo-file-system';
 import * as Sharing from 'expo-sharing';
 import { Buffer } from 'buffer';
 import { Platform } from 'react-native';
@@ -59,33 +59,9 @@ export async function generateExcel(
       const response = await fetch(baseFileUri);
       arrayBuffer = await response.arrayBuffer();
     } else {
-      let readUri = baseFileUri;
-      let isTempFile = false;
-      const tempFilePath = FileSystem.cacheDirectory + 'temp_excel_write_' + Date.now() + '.xlsx';
-
-      // Si es un content:// URI, copiar a caché temporal
-      if (baseFileUri.startsWith('content://')) {
-        await FileSystem.copyAsync({
-          from: baseFileUri,
-          to: tempFilePath,
-        });
-        readUri = tempFilePath;
-        isTempFile = true;
-      }
-
-      const fileContent = await FileSystem.readAsStringAsync(readUri, {
-        encoding: FileSystem.EncodingType.Base64,
-      });
-      arrayBuffer = Buffer.from(fileContent, 'base64');
-
-      // Limpiar archivo temporal
-      if (isTempFile) {
-        try {
-          await FileSystem.deleteAsync(tempFilePath, { idempotent: true });
-        } catch (cleanupError) {
-          console.warn('Error al limpiar archivo temporal de escritura:', cleanupError);
-        }
-      }
+      const file = new ExpoFile(baseFileUri);
+      const uint8Array = await file.bytes();
+      arrayBuffer = Buffer.from(uint8Array);
     }
 
     // 2. Cargar el workbook en ExcelJS
@@ -226,13 +202,10 @@ export async function generateExcel(
       document.body.removeChild(link);
       window.URL.revokeObjectURL(url);
     } else {
-      const base64 = Buffer.from(outputBuffer).toString('base64');
-      const outputUri = `${FileSystem.cacheDirectory}${outputFileName}`;
-
-      // Escribir el archivo en el directorio de cache temporal
-      await FileSystem.writeAsStringAsync(outputUri, base64, {
-        encoding: FileSystem.EncodingType.Base64,
-      });
+      const file = new ExpoFile(Paths.cache, outputFileName);
+      file.create({ overwrite: true });
+      file.write(new Uint8Array(outputBuffer));
+      const outputUri = file.uri;
 
       // 10. Compartir el archivo nativamente usando Expo Sharing
       if (await Sharing.isAvailableAsync()) {
