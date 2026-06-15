@@ -109,13 +109,13 @@ export default function Step1Upload({ baseFile, mergeFile, onFileSelected, onNex
           <View style={styles.cardContent}>
             <View style={styles.iconContainer}>
               <Ionicons 
-                name={mergeFile ? "git-merge" : "arrow-up-circle"} 
+                name={mergeFile ? "copy" : "arrow-up-circle"} 
                 size={32} 
                 color={mergeFile ? Colors.primaryLight : Colors.textMuted} 
               />
             </View>
             <View style={styles.infoContainer}>
-              <Text style={styles.cardTitle}>Excel Merge (Origen)</Text>
+              <Text style={styles.cardTitle}>Excel de Datos Nuevos (Origen)</Text>
               <Text style={styles.cardDesc}>
                 {mergeFile 
                   ? `${mergeFile.name} (${formatSize(mergeFile.size)})` 

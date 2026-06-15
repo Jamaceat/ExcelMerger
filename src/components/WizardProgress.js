@@ -7,7 +7,7 @@ import React from 'react';
 import { View, Text, StyleSheet } from 'react-native';
 import { Colors } from '../theme/colors';
 
-const STEPS = ['Cargar', 'Hojas', 'Clave', 'Filtro', 'Mapa', 'Merge'];
+const STEPS = ['Cargar', 'Hojas', 'Clave', 'Filtro', 'Mapa', 'Combinar'];
 
 export default function WizardProgress({ currentStep }) {
   return (

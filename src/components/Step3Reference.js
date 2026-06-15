@@ -21,7 +21,7 @@ export default function Step3Reference({
 
   useEffect(() => {
     if (selectedColumn) {
-      // Validar si la columna existe en el archivo Merge
+      // Validar si la columna existe en el archivo de Datos Nuevos
       const existsInMerge = mergeColumns.includes(selectedColumn);
       setIsValid(existsInMerge);
       setValidated(true);
@@ -79,7 +79,7 @@ export default function Step3Reference({
                   )}
                 </View>
                 <Text style={styles.columnMeta}>
-                  {existsInMerge ? "Disponible en Merge" : "No disponible en Merge"}
+                  {existsInMerge ? "Disponible en Datos Nuevos" : "No disponible en Datos Nuevos"}
                 </Text>
               </TouchableOpacity>
             );
@@ -106,7 +106,7 @@ export default function Step3Reference({
             <Text style={styles.validationDesc}>
               {isValid 
                 ? `La columna clave "${selectedColumn}" está presente en ambos archivos.` 
-                : `La columna "${selectedColumn}" NO se encuentra en el archivo Merge. Elige otra columna común.`
+                : `La columna "${selectedColumn}" NO se encuentra en el archivo de Datos Nuevos. Elige otra columna común.`
               }
             </Text>
           </View>

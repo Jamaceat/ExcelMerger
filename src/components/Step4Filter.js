@@ -134,7 +134,7 @@ export default function Step4Filter({
     <View style={styles.container}>
       <Text style={styles.title}>Filtro de Combinación (Opcional)</Text>
       <Text style={styles.subtitle}>
-        Filtra las filas del archivo Merge para incluir solo ciertos registros en el cruce.
+        Filtra las filas del archivo de Datos Nuevos para incluir solo ciertos registros en el cruce.
       </Text>
 
       {/* Selector de Columna de Filtro */}
@@ -244,8 +244,8 @@ export default function Step4Filter({
             <Ionicons name="information-circle" size={18} color={Colors.info} />
             <Text style={styles.infoText}>
               {stats.passing === stats.total
-                ? `Se utilizarán todas las ${stats.total} filas del Merge.`
-                : `${stats.passing} de ${stats.total} filas (${((stats.passing / stats.total) * 100).toFixed(0)}%) participarán en el merge.`
+                ? `Se utilizarán todas las ${stats.total} filas de Datos Nuevos.`
+                : `${stats.passing} de ${stats.total} filas (${((stats.passing / stats.total) * 100).toFixed(0)}%) participarán en el cruce.`
               }
             </Text>
           </View>
@@ -255,7 +255,7 @@ export default function Step4Filter({
           <Ionicons name="funnel-outline" size={48} color={Colors.textMuted} style={{ marginBottom: 12 }} />
           <Text style={styles.emptyText}>No hay filtros activos.</Text>
           <Text style={styles.emptySubtext}>
-            Se procesarán todos los registros del archivo Merge. Si deseas restringir los datos, selecciona una columna arriba.
+            Se procesarán todos los registros del archivo de Datos Nuevos. Si deseas restringir los datos, selecciona una columna arriba.
           </Text>
         </View>
       )}

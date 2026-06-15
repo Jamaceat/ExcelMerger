@@ -48,7 +48,7 @@ export default function Step6Download({
   onRestart,
   onBack,
 }) {
-  const [sheetName, setSheetName] = useState('Merge_Result');
+  const [sheetName, setSheetName] = useState('Resultado_Combinacion');
   const [highlightColor, setHighlightColor] = useState('#FFA500');
   const [unmatchedColor, setUnmatchedColor] = useState('#FF9999');
   const [generating, setGenerating] = useState(false);
@@ -94,7 +94,7 @@ export default function Step6Download({
             style={styles.input}
             value={sheetName}
             onChangeText={setSheetName}
-            placeholder="Merge_Result"
+            placeholder="Resultado_Combinacion"
             placeholderTextColor={Colors.textMuted}
             maxLength={31} // Limite de Excel para pestañas
           />
@@ -154,7 +154,7 @@ export default function Step6Download({
             <Text style={styles.statValue}>{stats.totalBaseRows}</Text>
           </View>
           <View style={styles.statRow}>
-            <Text style={styles.statLabel}>Filas en Excel Merge:</Text>
+            <Text style={styles.statLabel}>Filas en Excel de Datos Nuevos:</Text>
             <Text style={styles.statValue}>
               {stats.totalMergeRows} {stats.filteredOutRows > 0 ? `(${stats.filteredMergeRows} filtradas)` : ''}
             </Text>

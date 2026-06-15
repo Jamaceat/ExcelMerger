@@ -138,7 +138,7 @@ export async function generateExcel(
 
         // Aplicar formato de número/fecha si fue detectado
         if (columnFormats && columnFormats[colName]) {
-          cell.numFormat = columnFormats[colName];
+          cell.numFmt = columnFormats[colName];
         }
 
         // Si es columna nueva en una fila con match, destacar la celda

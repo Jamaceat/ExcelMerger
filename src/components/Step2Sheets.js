@@ -30,9 +30,9 @@ export default function Step2Sheets({
       </Text>
 
       <ScrollView style={styles.scrollView} showsVerticalScrollIndicator={false}>
-        {/* Hojas del Excel Base */}
+        {/* Hojas del Excel Principal */}
         <Text style={styles.sectionTitle}>
-          <Ionicons name="document-text" size={16} color={Colors.success} /> Base: {baseFileName}
+          <Ionicons name="document-text" size={16} color={Colors.success} /> Principal (Base): {baseFileName}
         </Text>
         <View style={styles.sheetList}>
           {baseSheets.map((sheet, index) => {
@@ -62,9 +62,9 @@ export default function Step2Sheets({
           })}
         </View>
 
-        {/* Hojas del Excel Merge */}
+        {/* Hojas del Excel de Datos Nuevos */}
         <Text style={styles.sectionTitle}>
-          <Ionicons name="git-merge" size={16} color={Colors.primaryLight} /> Merge: {mergeFileName}
+          <Ionicons name="copy" size={16} color={Colors.primaryLight} /> Datos Nuevos: {mergeFileName}
         </Text>
         <View style={styles.sheetList}>
           {mergeSheets.map((sheet, index) => {

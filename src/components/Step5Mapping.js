@@ -27,7 +27,7 @@ export default function Step5Mapping({
     const list = [];
     
     common.forEach(col => {
-      list.push({ name: col, type: 'COMMON', label: 'Común (Merge)', color: Colors.success, icon: 'checkmark-circle' });
+      list.push({ name: col, type: 'COMMON', label: 'Común (Ambas hojas)', color: Colors.success, icon: 'checkmark-circle' });
     });
     
     onlyBase.forEach(col => {
@@ -35,7 +35,7 @@ export default function Step5Mapping({
     });
     
     onlyMerge.forEach(col => {
-      list.push({ name: col, type: 'MERGE', label: 'Solo en Merge (Agregar)', color: Colors.danger, icon: 'add-circle' });
+      list.push({ name: col, type: 'MERGE', label: 'Solo en Datos Nuevos (Agregar)', color: Colors.danger, icon: 'add-circle' });
     });
 
     return list;

@@ -61,7 +61,7 @@ export default function HomeScreen() {
   // Paso 1: Archivo seleccionado
   const handleFileSelected = async (isBase: boolean, file: any) => {
     setLoading(true);
-    setLoadingMessage(isBase ? 'Analizando archivo Base...' : 'Analizando archivo Merge...');
+    setLoadingMessage(isBase ? 'Analizando archivo Principal...' : 'Analizando archivo de Datos Nuevos...');
     try {
       const wb = await parseExcelFile(file.uri);
       if (isBase) {
@@ -94,12 +94,14 @@ export default function HomeScreen() {
       const mergeInfo = detectHeader(mergeSheet);
       
       const baseFormats = detectColumnFormats(baseSheet, baseInfo);
+      const mergeFormats = detectColumnFormats(mergeSheet, mergeInfo);
+      const combinedFormats = { ...mergeFormats, ...baseFormats };
       const bData = extractData(baseSheet, baseInfo.headerRow, baseInfo.columns, true);
       const mData = extractData(mergeSheet, mergeInfo.headerRow, mergeInfo.columns, true);
 
       setBaseColumns(baseInfo.columns);
       setMergeColumns(mergeInfo.columns);
-      setColumnFormats(baseFormats);
+      setColumnFormats(combinedFormats);
       setBaseData(bData);
       setMergeData(mData);
       
@@ -136,7 +138,7 @@ export default function HomeScreen() {
       setStats(result.stats);
       setStep(6);
     } catch (e: any) {
-      alert('Error al realizar el merge: ' + e.message);
+      alert('Error al combinar los datos: ' + e.message);
     } finally {
       setLoading(false);
     }
@@ -170,7 +172,7 @@ export default function HomeScreen() {
       {/* Cabecera Premium */}
       <View style={styles.header}>
         <Text style={styles.headerTitle}>EdwinCobra</Text>
-        <Text style={styles.headerSubtitle}>Excel Merger Tool</Text>
+        <Text style={styles.headerSubtitle}>Combinador Inteligente</Text>
       </View>
 
       {/* Progress Wizard */}
