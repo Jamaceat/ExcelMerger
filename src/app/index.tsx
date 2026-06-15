@@ -20,9 +20,10 @@ import Step2Sheets from '../components/Step2Sheets';
 import Step3Reference from '../components/Step3Reference';
 import Step4Filter from '../components/Step4Filter';
 import Step5Mapping from '../components/Step5Mapping';
+import Step6Colors from '../components/Step6Colors';
 import Step6Download from '../components/Step6Download';
 
-import { parseExcelFile, detectHeader, detectColumnFormats, extractData } from '../utils/excelParser';
+import { parseExcelFile, detectHeader, detectColumnFormats, extractData, detectRowColors } from '../utils/excelParser';
 import { performMerge } from '../utils/mergeEngine';
 
 export default function HomeScreen() {
@@ -57,6 +58,11 @@ export default function HomeScreen() {
   const [mergedData, setMergedData] = useState<any[]>([]);
   const [newColumns, setNewColumns] = useState<string[]>([]);
   const [stats, setStats] = useState<any>(null);
+
+  // Colores del archivo base
+  const [colorPalette, setColorPalette] = useState<any[]>([]);
+  const [rowColorMap, setRowColorMap] = useState<Record<number, string>>({});
+  const [preserveColors, setPreserveColors] = useState<string[]>([]);
 
   // Paso 1: Archivo seleccionado
   const handleFileSelected = async (isBase: boolean, file: any) => {
@@ -99,6 +105,10 @@ export default function HomeScreen() {
       const bData = extractData(baseSheet, baseInfo.headerRow, baseInfo.columns, true);
       const mData = extractData(mergeSheet, mergeInfo.headerRow, mergeInfo.columns, true);
 
+      const { colorPalette: palette, rowColorMap: colorMap } = detectRowColors(baseSheet, baseInfo);
+      setColorPalette(palette);
+      setRowColorMap(colorMap);
+
       setBaseColumns(baseInfo.columns);
       setMergeColumns(mergeInfo.columns);
       setColumnFormats(combinedFormats);
@@ -117,6 +127,14 @@ export default function HomeScreen() {
     } finally {
       setLoading(false);
     }
+  };
+
+  // Paso 6: Toggle de colores a preservar
+  const handleTogglePreserveColor = (hex: string) => {
+    const upper = hex.toUpperCase();
+    setPreserveColors(prev =>
+      prev.includes(upper) ? prev.filter(c => c !== upper) : [...prev, upper]
+    );
   };
 
   // Paso 5: Ejecutar merge y pasar a Paso 6
@@ -165,6 +183,9 @@ export default function HomeScreen() {
     setMergedData([]);
     setNewColumns([]);
     setStats(null);
+    setColorPalette([]);
+    setRowColorMap({});
+    setPreserveColors([]);
   };
 
   return (
@@ -232,15 +253,28 @@ export default function HomeScreen() {
           />
         )}
         {step === 6 && (
+          <Step6Colors
+            colorPalette={colorPalette}
+            preserveColors={preserveColors}
+            onToggleColor={handleTogglePreserveColor}
+            onClearColors={() => setPreserveColors([])}
+            onNext={() => setStep(7)}
+            onBack={() => setStep(5)}
+          />
+        )}
+        {step === 7 && (
           <Step6Download
             baseFile={baseFile}
+            baseSheetName={selectedBaseSheet}
             mergedData={mergedData}
             baseColumns={baseColumns}
             newColumns={newColumns}
             stats={stats}
             columnFormats={columnFormats}
+            preserveColors={preserveColors}
+            rowColorMap={rowColorMap}
             onRestart={handleRestart}
-            onBack={() => setStep(5)}
+            onBack={() => setStep(6)}
           />
         )}
       </View>

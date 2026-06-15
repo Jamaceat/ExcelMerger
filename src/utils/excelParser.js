@@ -258,9 +258,66 @@ export function getUniqueValues(data, columnName) {
 }
 
 /**
+ * Detecta los colores de fondo de fila del archivo base (SheetJS con cellStyles: true).
+ * @param {any} sheet - Hoja de SheetJS
+ * @param {{ headerRow: number, columns: string[] }} headerInfo
+ * @returns {{ colorPalette: {hex: string, count: number}[], rowColorMap: Record<number, string> }}
+ */
+export function detectRowColors(sheet, headerInfo) {
+  if (!sheet || !sheet['!ref'] || !headerInfo) {
+    return { colorPalette: [], rowColorMap: {} };
+  }
+
+  const range = XLSX.utils.decode_range(sheet['!ref']);
+  const colorCounts = {};
+  const rowColorMap = {};
+
+  for (let r = headerInfo.headerRow + 1; r <= range.e.r; r++) {
+    const rowColorFreq = {};
+
+    for (let c = range.s.c; c <= range.e.c; c++) {
+      const cellRef = XLSX.utils.encode_cell({ r, c });
+      const cell = sheet[cellRef];
+      if (!cell || !cell.s || !cell.s.fgColor) continue;
+
+      const fgColor = cell.s.fgColor;
+      if (!fgColor.rgb || fgColor.rgb.length < 6) continue;
+
+      const rgb = fgColor.rgb.toUpperCase();
+      // Ignorar blanco, negro y transparente
+      if (rgb === 'FFFFFF' || rgb === '000000' || rgb === 'FF000000') continue;
+
+      rowColorFreq[rgb] = (rowColorFreq[rgb] || 0) + 1;
+    }
+
+    // Color dominante de la fila
+    let dominantColor = null;
+    let maxCount = 0;
+    for (const [color, count] of Object.entries(rowColorFreq)) {
+      if (count > maxCount) {
+        maxCount = count;
+        dominantColor = color;
+      }
+    }
+
+    if (dominantColor) {
+      const rowNum = r + 1; // 1-indexed, igual que __rowNum en extractData
+      rowColorMap[rowNum] = '#' + dominantColor;
+      colorCounts[dominantColor] = (colorCounts[dominantColor] || 0) + 1;
+    }
+  }
+
+  const colorPalette = Object.entries(colorCounts)
+    .map(([rgb, count]) => ({ hex: '#' + rgb, count }))
+    .sort((a, b) => b.count - a.count);
+
+  return { colorPalette, rowColorMap };
+}
+
+/**
  * Filtra los datos según una columna y un conjunto de valores seleccionados (Multiselect).
- * @param {any[]} data 
- * @param {string} columnName 
+ * @param {any[]} data
+ * @param {string} columnName
  * @param {string[]} selectedValues - Array de valores seleccionados
  * @returns {any[]}
  */

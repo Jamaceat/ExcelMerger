@@ -41,15 +41,17 @@ function cleanHexColor(hexColor) {
  * @param {Record<string, string>} columnFormats - Mapeo de nombre de columna a formato (.z)
  */
 export async function generateExcel(
-  baseFileUri, 
-  baseFileName, 
-  mergedData, 
-  baseColumns, 
-  newColumns, 
-  highlightColor, 
-  unmatchedColor, 
+  baseFileUri,
+  baseFileName,
+  mergedData,
+  baseColumns,
+  newColumns,
+  highlightColor,
+  unmatchedColor,
   newSheetName,
-  columnFormats
+  columnFormats,
+  preserveColors = [],
+  rowColorMap = {}
 ) {
   try {
     let arrayBuffer;
@@ -94,6 +96,7 @@ export async function generateExcel(
     const newColsSet = new Set(newColumns);
     const cleanHighlight = cleanHexColor(highlightColor);
     const cleanUnmatched = cleanHexColor(unmatchedColor);
+    const preserveSet = new Set((preserveColors || []).map(c => c.toUpperCase()));
 
     // 6. Escribir cabeceras en la Fila 1 y dar formato
     const headerRow = sheet.getRow(1);
@@ -128,39 +131,47 @@ export async function generateExcel(
       const row = sheet.getRow(excelRowIndex);
       row.height = 20;
 
+      // Determinar si esta fila tiene un color original que debe preservarse
+      const originalRowNum = rowData['__rowNum'];
+      const originalColor = rowColorMap && originalRowNum ? rowColorMap[originalRowNum] : null;
+      const shouldPreserve = originalColor && preserveSet.size > 0 &&
+        preserveSet.has(originalColor.toUpperCase());
+      const cleanPreserved = shouldPreserve ? cleanHexColor(originalColor) : null;
+
       headerOrder.forEach((colName, cIndex) => {
         const cell = row.getCell(cIndex + 1);
         const val = rowData[colName];
-        
-        // Asignar el valor
+
         cell.value = val !== undefined && val !== null ? val : '';
         cell.alignment = { vertical: 'middle' };
 
-        // Aplicar formato de número/fecha si fue detectado
         if (columnFormats && columnFormats[colName]) {
           cell.numFmt = columnFormats[colName];
         }
 
-        // Si es columna nueva en una fila con match, destacar la celda
         if (newColsSet.has(colName)) {
+          // Columnas nuevas siempre llevan el color de highlight
           cell.fill = {
             type: 'pattern',
             pattern: 'solid',
             fgColor: { argb: cleanHighlight }
           };
-        }
-      });
-
-      // Si es una fila sin correspondencia (unmatched), colorear toda la fila
-      if (rowData['__isUnmatched'] === true) {
-        row.eachCell({ includeEmpty: true }, (cell) => {
+        } else if (rowData['__isUnmatched'] === true) {
+          // Filas nuevas (sin match) llevan el color de filas nuevas
           cell.fill = {
             type: 'pattern',
             pattern: 'solid',
             fgColor: { argb: cleanUnmatched }
           };
-        });
-      }
+        } else if (cleanPreserved) {
+          // Filas con color original seleccionado para preservar
+          cell.fill = {
+            type: 'pattern',
+            pattern: 'solid',
+            fgColor: { argb: cleanPreserved }
+          };
+        }
+      });
     });
 
     // 8. Auto-ajustar el ancho de las columnas

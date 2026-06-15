@@ -31,26 +31,37 @@ const HIGHLIGHT_PALETTE = [
 
 // Opciones de paletas premium suaves para filas sin match
 const UNMATCHED_PALETTE = [
+  { hex: '#991F72', name: 'Magenta' },
   { hex: '#FF9999', name: 'Rojo Suave' },
   { hex: '#FEF08A', name: 'Amarillo Suave' },
   { hex: '#BFDBFE', name: 'Azul Suave' },
   { hex: '#E9D5FF', name: 'Púrpura Suave' },
-  { hex: '#A7F3D0', name: 'Verde Suave' },
 ];
 
 export default function Step6Download({
   baseFile,
+  baseSheetName,
   mergedData,
   baseColumns,
   newColumns,
   stats,
   columnFormats,
+  preserveColors,
+  rowColorMap,
   onRestart,
   onBack,
 }) {
-  const [sheetName, setSheetName] = useState('Resultado_Combinacion');
+  const [sheetName, setSheetName] = useState(() => {
+    const now = new Date();
+    const month = String(now.getMonth() + 1).padStart(2, '0');
+    const year = now.getFullYear();
+    const baseName = baseSheetName || 'Resultado';
+    const suffix = `_${month}_${year}`;
+    const maxBase = 31 - suffix.length;
+    return (baseName.length > maxBase ? baseName.substring(0, maxBase) : baseName) + suffix;
+  });
   const [highlightColor, setHighlightColor] = useState('#FFA500');
-  const [unmatchedColor, setUnmatchedColor] = useState('#FF9999');
+  const [unmatchedColor, setUnmatchedColor] = useState('#991F72');
   const [generating, setGenerating] = useState(false);
 
   const handleGenerateAndShare = async () => {
@@ -65,7 +76,9 @@ export default function Step6Download({
         highlightColor,
         unmatchedColor,
         sheetName,
-        columnFormats
+        columnFormats,
+        preserveColors || [],
+        rowColorMap || {}
       );
     } catch (error) {
       console.error('Error al generar Excel:', error);
