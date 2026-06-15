@@ -1,4 +1,4 @@
-.PHONY: help install start start-tunnel android web clean reset prebuild local-apk eas-login eas-config eas-apk eas-aab
+.PHONY: help install start start-tunnel android web clean reset prebuild local-apk local-apk-rebuild local-apk-clean eas-login eas-config eas-apk eas-aab
 
 # Gestor de paquetes por defecto (npm)
 PACKAGE_MANAGER = npm
@@ -24,8 +24,10 @@ help:
 	@echo "  reset            Ejecuta el script de reinicio del proyecto"
 	@echo ""
 	@echo "$(BLUE)Compilación Local (Aislada con Docker):$(RESET)"
-	@echo "  prebuild         Genera las carpetas nativas de Android e iOS (expo prebuild)"
-	@echo "  local-apk        Genera el archivo APK localmente usando un contenedor Docker"
+	@echo "  prebuild          Genera las carpetas nativas de Android e iOS (expo prebuild)"
+	@echo "  local-apk         Genera el archivo APK localmente reutilizando caché"
+	@echo "  local-apk-rebuild Reconstruye la imagen Docker base y compila el APK"
+	@echo "  local-apk-clean   Elimina todas las cachés persistentes (volúmenes de Docker)"
 	@echo ""
 	@echo "$(BLUE)Compilación Nube (EAS Build - Recomendado):$(RESET)"
 	@echo "  eas-login        Inicia sesión en Expo CLI"
@@ -52,9 +54,10 @@ web:
 	npx expo start --web
 
 clean:
-	@echo "$(BLUE)Limpiando caché de Metro...$(RESET)"
+	@echo "$(BLUE)Limpiando caché de Metro y carpeta de salida...$(RESET)"
 	npx expo start -c
-	@echo "$(GREEN)Caché limpia.$(RESET)"
+	rm -rf dist
+	@echo "$(GREEN)Limpieza completada.$(RESET)"
 
 reset:
 	@echo "$(BLUE)Ejecutando reinicio completo...$(RESET)"
@@ -66,14 +69,29 @@ prebuild:
 	@echo "$(GREEN)Directorios nativos generados.$(RESET)"
 
 local-apk:
+	@echo "$(BLUE)Asegurando carpeta dist...$(RESET)"
+	mkdir -p dist
 	@echo "$(BLUE)Asegurando permisos de ejecución para el script de compilación...$(RESET)"
 	chmod +x scripts/docker-build.sh
-	@echo "$(BLUE)Iniciando compilación en Docker (puede tardar la primera vez)...$(RESET)"
-	USER_ID=$$(id -u) GROUP_ID=$$(id -g) docker compose up --build
+	@echo "$(BLUE)Iniciando compilación en Docker (usa caché de ejecuciones previas)...$(RESET)"
+	USER_ID=$$(id -u) GROUP_ID=$$(id -g) docker compose up
 	@echo "$(BLUE)Limpiando contenedor de compilación...$(RESET)"
 	docker compose down
 	@echo "$(GREEN)Compilación finalizada.$(RESET)"
 	@echo "El archivo APK se encuentra en: $(BLUE)./dist/edwincobra.apk$(RESET)"
+
+local-apk-rebuild:
+	@echo "$(BLUE)Reconstruyendo imagen Docker y compilando APK...$(RESET)"
+	mkdir -p dist
+	chmod +x scripts/docker-build.sh
+	USER_ID=$$(id -u) GROUP_ID=$$(id -g) docker compose up --build
+	docker compose down
+	@echo "$(GREEN)Compilación finalizada.$(RESET)"
+
+local-apk-clean:
+	@echo "$(BLUE)Eliminando contenedores y volúmenes de caché de Docker...$(RESET)"
+	docker compose down -v
+	@echo "$(GREEN)Cachés eliminadas con éxito.$(RESET)"
 
 eas-login:
 	npx eas login
