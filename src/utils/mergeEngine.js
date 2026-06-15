@@ -1,6 +1,6 @@
 /**
- * mergeEngine.js
- * Módulo que contiene la lógica principal del merge de datos.
+ * src/utils/mergeEngine.js
+ * Módulo que contiene la lógica principal del merge de datos adaptado para React Native.
  */
 
 /**
@@ -11,21 +11,30 @@
  * @param {string} referenceColumn - Nombre de la columna de referencia (debe existir en ambos)
  * @param {string[]} baseColumns - Lista completa de columnas en el orden del Base
  * @param {string[]} mergeColumns - Lista completa de columnas del Merge
- * @param {{ column: string, value: string } | null} filter - Filtro opcional a aplicar sobre el Merge
+ * @param {{ column: string, values: string[] } | null} filter - Filtro opcional (multiselección) a aplicar sobre el Merge
  * @returns {{ mergedData: any[], newColumns: string[], stats: any }}
  */
-function performMerge(baseData, mergeData, referenceColumn, baseColumns, mergeColumns, filter = null) {
+export function performMerge(
+  baseData, 
+  mergeData, 
+  referenceColumn, 
+  baseColumns, 
+  mergeColumns, 
+  filter = null
+) {
   let filteredMergeData = mergeData;
   let filteredOutCount = 0;
 
-  // 1. Aplicar filtro al Excel Merge si está configurado
-  if (filter && filter.column && filter.value) {
+  // 1. Aplicar filtro al Excel Merge si está configurado (Multiselección)
+  if (filter && filter.column && filter.values && filter.values.length > 0) {
     const filterCol = filter.column;
-    const filterVal = String(filter.value).trim().toLowerCase();
+    const filterValsSet = new Set(
+      filter.values.map(v => String(v).trim().toLowerCase())
+    );
     
     filteredMergeData = mergeData.filter(row => {
       const v = row[filterCol];
-      const match = v !== undefined && v !== null && String(v).trim().toLowerCase() === filterVal;
+      const match = v !== undefined && v !== null && filterValsSet.has(String(v).trim().toLowerCase());
       if (!match) filteredOutCount++;
       return match;
     });
@@ -36,9 +45,7 @@ function performMerge(baseData, mergeData, referenceColumn, baseColumns, mergeCo
   const newColumns = mergeColumns.filter(col => !baseColSet.has(col));
 
   // 3. Crear índice rápido de búsqueda para el Merge
-  // Mapeamos el valor de referencia (en minúsculas y sin espacios) al objeto de la fila
   const mergeIndex = new Map();
-  // Para llevar registro de cuáles filas del Merge han sido cruzadas (match)
   const matchedMergeRows = new Set();
 
   filteredMergeData.forEach((row, index) => {
@@ -57,7 +64,6 @@ function performMerge(baseData, mergeData, referenceColumn, baseColumns, mergeCo
 
   // 4. Procesar filas del Base (manteniendo su orden original)
   baseData.forEach(baseRow => {
-    // Clonamos la fila base para no mutar el array original
     const newRow = { ...baseRow };
     const refVal = baseRow[referenceColumn];
     

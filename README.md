@@ -1,76 +1,56 @@
-# Excel Merge Web Tool
+# Welcome to your Expo app 👋
 
-Una herramienta web estática diseñada para combinar y unificar el contenido de dos archivos Excel de forma visual y controlada. Todo el procesamiento se realiza en el navegador del cliente utilizando HTML, CSS y JavaScript vanilla con la biblioteca `xlsx-js-style`, garantizando que tus datos permanezcan privados y no se envíen a ningún servidor.
+This is an [Expo](https://expo.dev) project created with [`create-expo-app`](https://www.npmjs.com/package/create-expo-app).
 
-## 🚀 Características Principales
+## Get started
 
-1. **Diseño Wizard de 6 Pasos:** Interfaz interactiva y guiada por etapas con un diseño oscuro premium, animaciones micro-interactivas y estética Glassmorphism.
-2. **Carga Drag & Drop:** Arrastra y suelta tus archivos Excel directamente en la interfaz.
-3. **Selección Visual de Pestañas:** Listado automático de hojas detectadas por cada libro de cálculo con conteo aproximado de registros.
-4. **Detección Automática de Cabeceras:** Algoritmo inteligente que escanea las hojas celda por celda para encontrar la cabecera en cualquier fila (no asume fila 1).
-5. **Columna de Referencia Inteligente:** Validación cruzada en tiempo real de la existencia de la columna de match seleccionada en ambos archivos.
-6. **Filtro del Merge Opcional:** Filtra las filas que participarán en el merge extrayendo los valores únicos de la columna que elijas del archivo Merge.
-7. **Mapa Comparativo de Columnas:** Tabla comparativa categorizada por colores (Común, Solo en Base, Solo en Merge).
-8. **Configuración Estética del Output:**
-   - Permite elegir el nombre del sheet de resultado (por defecto `Merge_Result`).
-   - Selección dinámica del color para marcar nuevas columnas (naranja por defecto).
-   - Selección dinámica del color para marcar las filas sin correspondencia añadidas al final (rojo suave por defecto).
-9. **Operación No Destructiva:** El archivo resultante contiene todas las hojas originales de tu Excel Base intactas, añadiendo el resultado del merge en una pestaña nueva.
-10. **Previsualización en Tiempo Real:** Tabla de previsualización con las primeras 50 filas del resultado antes de descargar.
+1. Install dependencies
 
----
+   ```bash
+   npm install
+   ```
 
-## 🛠️ Estructura del Proyecto
+2. Start the app
 
-```
-excelProyect/
-├── index.html          ← Estructura del Wizard y elementos UI
-├── css/
-│   └── styles.css      ← Estilos visuales del Tema Oscuro y Glassmorphism
-├── js/
-│   ├── app.js          ← Controlador principal de estados y eventos
-│   ├── excelParser.js  ← Lectura de archivos y extracción de datos/cabeceras
-│   ├── mergeEngine.js  ← Lógica del motor de merge de datos
-│   └── excelWriter.js  ← Escritura y coloreado de celdas con xlsx-js-style
-├── PLAN.md             ← Plan de implementación inicial
-├── PROGRESS.md         ← Control de tareas de desarrollo
-└── README.md           ← Este documento
-```
+   ```bash
+   npx expo start
+   ```
 
----
+In the output, you'll find options to open the app in a
 
-## 💻 Configuración Local
+- [development build](https://docs.expo.dev/develop/development-builds/introduction/)
+- [Android emulator](https://docs.expo.dev/workflow/android-studio-emulator/)
+- [iOS simulator](https://docs.expo.dev/workflow/ios-simulator/)
+- [Expo Go](https://expo.dev/go), a limited sandbox for trying out app development with Expo
 
-Dado que la aplicación es totalmente estática y carga la librería Excel mediante CDN, puedes ejecutarla localmente de manera muy sencilla.
+You can start developing by editing the files inside the **app** directory. This project uses [file-based routing](https://docs.expo.dev/router/introduction).
 
-### Opción 1: Abrir directamente el archivo
-Simplemente haz doble clic en `index.html` para abrirlo en cualquier navegador web moderno.
+## Get a fresh project
 
-### Opción 2: Usar un Servidor HTTP Local (Recomendado)
-Para evitar problemas con políticas de CORS locales de algunos navegadores al cargar recursos, se recomienda levantar un servidor rápido.
+When you're ready, run:
 
-**Con Python:**
-Ejecuta la siguiente línea en tu terminal en la raíz del proyecto:
 ```bash
-python3 -m http.server 8000
+npm run reset-project
 ```
-Luego abre `http://localhost:8000` en tu navegador.
 
-**Con Node.js (npm):**
-Puedes instalar y ejecutar un servidor local:
-```bash
-npx serve .
-```
-Luego abre `http://localhost:3000` en tu navegador.
+This command will move the starter code to the **app-example** directory and create a blank **app** directory where you can start developing.
 
----
+### Other setup steps
 
-## 🌐 Despliegue en GitHub Pages
+- To set up ESLint for linting, run `npx expo lint`, or follow our guide on ["Using ESLint and Prettier"](https://docs.expo.dev/guides/using-eslint/)
+- If you'd like to set up unit testing, follow our guide on ["Unit Testing with Jest"](https://docs.expo.dev/develop/unit-testing/)
+- Learn more about the TypeScript setup in this template in our guide on ["Using TypeScript"](https://docs.expo.dev/guides/typescript/)
 
-Para publicar esta herramienta de forma gratuita usando GitHub Pages:
-1. Crea un repositorio en GitHub y sube los archivos de este proyecto (`git push`).
-2. Ve a los **Settings** (Ajustes) de tu repositorio.
-3. En el menú de la izquierda, selecciona **Pages**.
-4. En **Build and deployment**, selecciona la rama `main` y la carpeta `/ (root)`.
-5. Haz clic en **Save** (Guardar).
-6. Tu aplicación estará disponible en pocos minutos en `https://<tu-usuario>.github.io/<nombre-repositorio>/`.
+## Learn more
+
+To learn more about developing your project with Expo, look at the following resources:
+
+- [Expo documentation](https://docs.expo.dev/): Learn fundamentals, or go into advanced topics with our [guides](https://docs.expo.dev/guides).
+- [Learn Expo tutorial](https://docs.expo.dev/tutorial/introduction/): Follow a step-by-step tutorial where you'll create a project that runs on Android, iOS, and the web.
+
+## Join the community
+
+Join our community of developers creating universal apps.
+
+- [Expo on GitHub](https://github.com/expo/expo): View our open source platform and contribute.
+- [Discord community](https://chat.expo.dev): Chat with Expo users and ask questions.

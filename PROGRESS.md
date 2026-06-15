@@ -1,22 +1,30 @@
-# Progreso del Desarrollo — Excel Merge Web Tool
+# Progreso del Desarrollo — EdwinCobra (React Native Version)
 
-Este archivo registra el avance de la implementación. Las tareas completadas aparecerán ~~tachadas~~.
+Este archivo registra el avance de la implementación para la versión móvil. Las tareas completadas aparecerán ~~tachadas~~ o marcadas con [x].
 
 ## Checklist de Desarrollo
 
-- [x] ~~Estructura de carpetas y archivos base del proyecto~~
-- [x] ~~Módulo Parser de Excel (`js/excelParser.js`)~~
-- [x] ~~Módulo Motor de Merge (`js/mergeEngine.js`)~~
-- [x] ~~Módulo Escritor de Excel con Estilos (`js/excelWriter.js`)~~
-- [x] ~~Estilos CSS Premium (Tema Oscuro + Glassmorphism + Animaciones) (`css/styles.css`)~~
-- [x] ~~Interfaz HTML del Wizard de 6 Pasos (`index.html`)~~
-- [x] ~~Controlador General de la Aplicación (`js/app.js`)~~
-- [x] ~~Documentación del Proyecto (`README.md`)~~
-- [x] ~~Verificación y pruebas de integración locales~~
-- [x] ~~Corrección de formato de celdas (fechas y números con formato) al generar el Excel final y previsualizar~~
-- [x] ~~Configurar color verde (#00FF11 / rgb(0,255,17)) como valor por defecto para filas sin coincidencia~~
-- [x] ~~Implementar botón y funcionalidad de reiniciar proceso desde el paso final~~
-- [x] ~~Implementar auto-ajuste de ancho de columnas (autofit/expansión) para evitar celdas contraídas o notación científica~~
-- [x] ~~Diseño responsive adaptativo para dispositivos móviles y tablets (`css/styles.css`, `index.html`)~~
-
-
+- [x] **Preparación del Entorno**
+  - [x] Respaldar archivos web anteriores en `web_backup`
+  - [x] Inicializar la aplicación Expo en la raíz (`./`)
+  - [x] Instalar dependencias (`xlsx`, `exceljs`, `buffer`, `expo-document-picker`, `expo-file-system`, `expo-sharing`)
+  - [x] Configurar `metro.config.js` y `app.json` (EdwinCobra)
+- [x] **Desarrollo de Utilidades de Procesamiento (JS)**
+  - [x] Crear `src/utils/excelParser.js` para lectura y detección de cabeceras
+  - [x] Crear `src/utils/mergeEngine.js` con soporte para filtro multiselect
+  - [x] Crear `src/utils/excelWriter.js` con soporte para `exceljs` y descarga nativa
+- [x] **Construcción de Componentes e Interfaz Móvil (React Native)**
+  - [x] Crear sistema de diseño y tema en `src/theme/colors.js`
+  - [x] Implementar `WizardProgress.js`
+  - [x] Paso 1: Carga de archivos y verificación de estado (`Step1Upload.js`)
+  - [x] Paso 2: Selección de pestañas (`Step2Sheets.js`)
+  - [x] Paso 3: Selector de columna de referencia y validación (`Step3Reference.js`)
+  - [x] Paso 4: Selector de filtro multiselección con checkboxes y buscador (`Step4Filter.js`)
+  - [x] Paso 5: Mapa comparativo de columnas (`Step5Mapping.js`)
+  - [x] Paso 6: Configuración de colores, preview y exportación (`Step6Download.js`)
+- [x] **Integración y Control Global**
+  - [x] Integrar todo en `App.js` (en `src/app/index.tsx`) con lógica de estados y navegación
+- [x] **Verificación y Cierre**
+  - [x] Validar compilación del empaquetador de Expo
+  - [x] Ejecutar flujo completo y validar Excel generado
+  - [x] Limpiar archivos temporales de respaldo

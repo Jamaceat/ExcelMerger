@@ -1,33 +1,53 @@
 /**
- * excelParser.js
- * Módulo para la lectura de archivos Excel y procesamiento inicial de datos.
+ * src/utils/excelParser.js
+ * Módulo para lectura de archivos Excel y procesamiento de datos en React Native/Expo.
  */
 
+import { Platform } from 'react-native';
+import * as FileSystem from 'expo-file-system';
+import * as XLSX from 'xlsx';
+
 /**
- * Lee un archivo Excel y retorna el workbook de SheetJS.
- * @param {File} file 
- * @returns {Promise<any>}
+ * Lee un archivo Excel local desde su URI de Expo y retorna el workbook de SheetJS.
+ * @param {string} fileUri - URI del archivo obtenido por DocumentPicker
+ * @returns {Promise<any>} Workbook de SheetJS
  */
-function parseExcelFile(file) {
-  return new Promise((resolve, reject) => {
-    const reader = new FileReader();
-    reader.onload = (e) => {
-      try {
-        const data = new Uint8Array(e.target.result);
-        const workbook = XLSX.read(data, { 
-          type: 'array',
-          cellStyles: true,
-          cellFormulas: true,
-          cellNF: true
-        });
-        resolve(workbook);
-      } catch (err) {
-        reject(new Error('No se pudo parsear el archivo Excel. Asegúrate de que sea un archivo válido.'));
-      }
-    };
-    reader.onerror = () => reject(new Error('Error al leer el archivo.'));
-    reader.readAsArrayBuffer(file);
-  });
+export async function parseExcelFile(fileUri) {
+  try {
+    let workbook;
+    
+    if (Platform.OS === 'web') {
+      // En la web, fetch de la URI (blob: o data:) para obtener el ArrayBuffer
+      const response = await fetch(fileUri);
+      const arrayBuffer = await response.arrayBuffer();
+      
+      // Parsear el ArrayBuffer con SheetJS
+      workbook = XLSX.read(arrayBuffer, {
+        type: 'array',
+        cellStyles: true,
+        cellFormulas: true,
+        cellNF: true,
+      });
+    } else {
+      // En entorno móvil (Android/iOS), leer usando expo-file-system
+      const fileContent = await FileSystem.readAsStringAsync(fileUri, {
+        encoding: FileSystem.EncodingType.Base64,
+      });
+      
+      // Parsear el contenido Base64 con SheetJS
+      workbook = XLSX.read(fileContent, {
+        type: 'base64',
+        cellStyles: true,
+        cellFormulas: true,
+        cellNF: true,
+      });
+    }
+    
+    return workbook;
+  } catch (error) {
+    console.error('Error al leer/parsear Excel:', error);
+    throw new Error('No se pudo abrir el archivo Excel. Asegúrate de que sea un archivo de hoja de cálculo válido (.xlsx o .xls).');
+  }
 }
 
 /**
@@ -36,7 +56,7 @@ function parseExcelFile(file) {
  * @param {any} sheet - Hoja de SheetJS
  * @returns {{ headerRow: number, columns: string[] }}
  */
-function detectHeader(sheet) {
+export function detectHeader(sheet) {
   if (!sheet || !sheet['!ref']) {
     return { headerRow: 0, columns: [] };
   }
@@ -105,7 +125,7 @@ function detectHeader(sheet) {
  * @param {{ headerRow: number, columns: string[] }} headerInfo 
  * @returns {Record<string, string>} Mapeo de nombre de columna a formato (.z)
  */
-function detectColumnFormats(sheet, headerInfo) {
+export function detectColumnFormats(sheet, headerInfo) {
   const formats = {};
   if (!sheet || !sheet['!ref'] || !headerInfo || !headerInfo.columns) {
     return formats;
@@ -137,9 +157,10 @@ function detectColumnFormats(sheet, headerInfo) {
  * @param {any} sheet 
  * @param {number} headerRow 
  * @param {string[]} columns 
+ * @param {boolean} ignoreHidden
  * @returns {any[]} Array de objetos
  */
-function extractData(sheet, headerRow, columns, ignoreHidden = false) {
+export function extractData(sheet, headerRow, columns, ignoreHidden = false) {
   if (!sheet || !sheet['!ref']) return [];
   
   const range = XLSX.utils.decode_range(sheet['!ref']);
@@ -183,7 +204,7 @@ function extractData(sheet, headerRow, columns, ignoreHidden = false) {
  * @param {string[]} mergeColumns 
  * @returns {{ common: string[], onlyBase: string[], onlyMerge: string[] }}
  */
-function compareColumns(baseColumns, mergeColumns) {
+export function compareColumns(baseColumns, mergeColumns) {
   const common = [];
   const onlyBase = [];
   const onlyMerge = [];
@@ -214,7 +235,7 @@ function compareColumns(baseColumns, mergeColumns) {
  * @param {string} columnName 
  * @returns {string[]}
  */
-function getUniqueValues(data, columnName) {
+export function getUniqueValues(data, columnName) {
   const vals = new Set();
   for (const row of data) {
     const v = row[columnName];
@@ -222,20 +243,26 @@ function getUniqueValues(data, columnName) {
       vals.add(String(v).trim());
     }
   }
-  return Array.from(vals).sort();
+  return Array.from(vals).sort((a, b) => a.localeCompare(b, undefined, { numeric: true, sensitivity: 'base' }));
 }
 
 /**
- * Filtra los datos según una columna y un valor específico.
+ * Filtra los datos según una columna y un conjunto de valores seleccionados (Multiselect).
  * @param {any[]} data 
  * @param {string} columnName 
- * @param {string} value 
+ * @param {string[]} selectedValues - Array de valores seleccionados
  * @returns {any[]}
  */
-function filterData(data, columnName, value) {
+export function filterData(data, columnName, selectedValues = []) {
+  if (!selectedValues || selectedValues.length === 0) {
+    return data;
+  }
+  
+  const selectedSet = new Set(selectedValues.map(v => String(v).trim().toLowerCase()));
+  
   return data.filter(row => {
     const v = row[columnName];
-    const strVal = v !== undefined && v !== null ? String(v).trim() : '';
-    return strVal === String(value).trim();
+    const strVal = v !== undefined && v !== null ? String(v).trim().toLowerCase() : '';
+    return selectedSet.has(strVal);
   });
 }
