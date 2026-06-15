@@ -1,0 +1,334 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Excel Merge Web Tool — Unión inteligente de archivos Excel</title>
+  <meta name="description" content="Une dos archivos Excel de forma visual, filtrando registros, validando columnas en común y descargando el resultado sin modificar tus datos originales.">
+  
+  <!-- CSS Principal -->
+  <link rel="stylesheet" href="css/styles.css">
+  
+  <!-- Biblioteca Excel (xlsx-js-style) con soporte para formato y colores -->
+  <script src="https://cdn.jsdelivr.net/npm/xlsx-js-style@1.2.0/dist/xlsx.min.js"></script>
+</head>
+<body>
+
+  <!-- Cabecera de la aplicación -->
+  <header>
+    <div class="logo-container">
+      <div class="logo-icon">⇅</div>
+      <h1>Excel Merge Tool</h1>
+    </div>
+    <p class="subtitle">Combina hojas de cálculo de forma visual y precisa</p>
+  </header>
+
+  <!-- Contenido principal -->
+  <main>
+    
+    <!-- Barra de Progreso del Wizard (6 pasos) -->
+    <div class="stepper" id="stepper">
+      <div class="stepper-progress" id="stepperProgress"></div>
+      
+      <div class="step active" data-step="1" id="stepIndicator1">
+        <div class="step-number">1</div>
+        <div class="step-label">Archivos</div>
+      </div>
+      
+      <div class="step" data-step="2" id="stepIndicator2">
+        <div class="step-number">2</div>
+        <div class="step-label">Hojas</div>
+      </div>
+      
+      <div class="step" data-step="3" id="stepIndicator3">
+        <div class="step-number">3</div>
+        <div class="step-label">Referencia</div>
+      </div>
+      
+      <div class="step" data-step="4" id="stepIndicator4">
+        <div class="step-number">4</div>
+        <div class="step-label">Filtros</div>
+      </div>
+      
+      <div class="step" data-step="5" id="stepIndicator5">
+        <div class="step-number">5</div>
+        <div class="step-label">Columnas</div>
+      </div>
+      
+      <div class="step" data-step="6" id="stepIndicator6">
+        <div class="step-number">6</div>
+        <div class="step-label">Resultados</div>
+      </div>
+    </div>
+
+    <!-- Contenedor del Wizard -->
+    <div class="wizard-container">
+      
+      <!-- Paso 1: Subir Archivos -->
+      <section class="wizard-card active" id="step1">
+        <h2>📄 Paso 1: Cargar archivos de origen</h2>
+        <p class="card-description">Arrastra o selecciona los archivos Excel sobre los que deseas operar. El archivo Base recibirá las columnas nuevas del de Merge.</p>
+        
+        <div class="dropzone-grid">
+          <!-- Dropzone Base -->
+          <div class="dropzone-container">
+            <span class="dropzone-title">📥 Archivo Excel Base (Destino)</span>
+            <div class="dropzone" id="dropzoneBase">
+              <div class="dropzone-icon">📊</div>
+              <span class="dropzone-text">Arrastra aquí el Excel Base</span>
+              <span class="dropzone-subtext">o haz clic para buscarlo</span>
+              <input type="file" id="inputBase" accept=".xlsx, .xls" style="display: none;">
+            </div>
+            <div class="file-info" id="infoBase" style="display: none;">
+              <span class="file-name" id="nameBase">archivo.xlsx</span>
+              <button class="file-remove" id="removeBase">✕</button>
+            </div>
+          </div>
+
+          <!-- Dropzone Merge -->
+          <div class="dropzone-container">
+            <span class="dropzone-title">📥 Archivo Excel Merge (Origen de Datos)</span>
+            <div class="dropzone" id="dropzoneMerge">
+              <div class="dropzone-icon">🔄</div>
+              <span class="dropzone-text">Arrastra aquí el Excel Merge</span>
+              <span class="dropzone-subtext">o haz clic para buscarlo</span>
+              <input type="file" id="inputMerge" accept=".xlsx, .xls" style="display: none;">
+            </div>
+            <div class="file-info" id="infoMerge" style="display: none;">
+              <span class="file-name" id="nameMerge">archivo.xlsx</span>
+              <button class="file-remove" id="removeMerge">✕</button>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- Paso 2: Seleccionar Hojas -->
+      <section class="wizard-card" id="step2">
+        <h2>📋 Paso 2: Seleccionar las pestañas a cruzar</h2>
+        <p class="card-description">Selecciona la hoja de trabajo activa para cada uno de los archivos cargados. Se activará la detección automática de cabeceras.</p>
+        
+        <div class="sheet-selection-grid">
+          <!-- Hojas Base -->
+          <div class="sheet-panel">
+            <h3>Hojas en Excel Base</h3>
+            <div class="sheet-list" id="listBaseSheets">
+              <!-- Creadas dinámicamente -->
+            </div>
+          </div>
+
+          <!-- Hojas Merge -->
+          <div class="sheet-panel">
+            <h3>Hojas en Excel Merge</h3>
+            <div class="sheet-list" id="listMergeSheets">
+              <!-- Creadas dinámicamente -->
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- Paso 3: Columna de Referencia -->
+      <section class="wizard-card" id="step3">
+        <h2>🔑 Paso 3: Definir la columna de referencia (Llave de Match)</h2>
+        <p class="card-description">Selecciona la columna que identifica de forma única las filas (ej. ID, Código, Correo). Debe existir con el mismo nombre en ambos archivos.</p>
+        
+        <div class="columns-layout">
+          <div class="reference-selector-card">
+            <label for="selectRefColumn">Columna de referencia en Excel Base:</label>
+            <select id="selectRefColumn">
+              <option value="" disabled selected>Selecciona una columna...</option>
+            </select>
+          </div>
+
+          <div class="columns-side-by-side">
+            <!-- Columnas detectadas Base -->
+            <div>
+              <h3 style="margin-bottom: 0.5rem; font-size: 0.95rem; color: var(--text-secondary);">Columnas en Base</h3>
+              <div class="columns-list-box" id="listBaseColumns">
+                <!-- Creadas dinámicamente -->
+              </div>
+            </div>
+            <!-- Columnas detectadas Merge -->
+            <div>
+              <h3 style="margin-bottom: 0.5rem; font-size: 0.95rem; color: var(--text-secondary);">Columnas en Merge</h3>
+              <div class="columns-list-box" id="listMergeColumns">
+                <!-- Creadas dinámicamente -->
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- Paso 4: Filtros Opcionales -->
+      <section class="wizard-card" id="step4">
+        <h2>⚡ Paso 4: Filtrar datos del Excel Merge (Opcional)</h2>
+        <p class="card-description">Filtra las filas del Excel Merge por una columna y valor específico antes de combinarlas. Si omites el filtro, se usarán todas las filas.</p>
+        
+        <div class="filter-layout">
+          <div class="filter-controls">
+            <div>
+              <label for="selectFilterColumn">Filtrar por columna (de Merge):</label>
+              <select id="selectFilterColumn">
+                <option value="">-- Sin filtro / Omitir --</option>
+              </select>
+            </div>
+            <div>
+              <label for="selectFilterValue">Con el valor:</label>
+              <select id="selectFilterValue" disabled>
+                <option value="">-- Selecciona un valor --</option>
+              </select>
+            </div>
+          </div>
+          
+          <div class="filter-preview-badge" id="filterPreviewBadge" style="display: none;">
+            <span class="pulse-icon">🔍</span>
+            <span id="filterPreviewText">Cargando previsualización de filtro...</span>
+          </div>
+        </div>
+      </section>
+
+      <!-- Paso 5: Validación de Columnas -->
+      <section class="wizard-card" id="step5">
+        <h2>📊 Paso 5: Mapa comparativo de columnas</h2>
+        <p class="card-description">Revisa cómo se comportarán las columnas en el merge final. Las columnas nuevas se añadirán al extremo derecho.</p>
+        
+        <div class="comparison-table-container">
+          <table id="tableColumnComparison">
+            <thead>
+              <tr>
+                <th>Columna</th>
+                <th>Origen</th>
+                <th>Estado en el Merge</th>
+              </tr>
+            </thead>
+            <tbody>
+              <!-- Rellenado dinámicamente -->
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <!-- Paso 6: Generar Resultados -->
+      <section class="wizard-card" id="step6">
+        <h2>📥 Paso 6: Configuración de salida y descarga</h2>
+        <p class="card-description">Define las preferencias estéticas del libro final. El merge creará una pestaña nueva conservando el contenido original intacto.</p>
+        
+        <div class="config-grid">
+          <div>
+            <label for="inputSheetName">Nombre de la nueva pestaña:</label>
+            <input type="text" id="inputSheetName" value="Merge_Result" placeholder="Ej. Merge_Result">
+          </div>
+          
+          <div class="color-input-container">
+            <label>Paleta de colores para marcas:</label>
+            <div class="color-pickers">
+              <div class="color-picker-wrapper">
+                <input type="color" id="pickerHighlight" value="#FFA500">
+                <div>
+                  <div style="font-size: 0.8rem; font-weight: 600;">Columnas nuevas</div>
+                  <div style="font-size: 0.7rem; color: var(--text-secondary);">Defecto: Naranja</div>
+                </div>
+              </div>
+              
+              <div class="color-picker-wrapper">
+                <input type="color" id="pickerUnmatched" value="#FFCCCC">
+                <div>
+                  <div style="font-size: 0.8rem; font-weight: 600;">Filas sin match</div>
+                  <div style="font-size: 0.7rem; color: var(--text-secondary);">Defecto: Rojo suave</div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+        
+        <!-- Botón para ejecutar el merge -->
+        <div style="text-align: center; margin: 2rem 0 1rem;">
+          <button class="btn btn-primary" id="btnExecuteMerge" style="font-size: 1.1rem; padding: 1rem 2.5rem;">
+            🔄 Ejecutar Proceso de Merge
+          </button>
+        </div>
+
+        <!-- Resultados e información post-merge (oculto inicialmente) -->
+        <div id="resultsContainer" style="display: none;">
+          <div class="stats-panel">
+            <h3>📈 Estadísticas del Merge</h3>
+            <div class="stats-grid" style="margin-top: 1rem;">
+              <div class="stat-card">
+                <div class="stat-value" id="statBaseRows">0</div>
+                <div class="stat-label">Filas Base</div>
+              </div>
+              <div class="stat-card">
+                <div class="stat-value" id="statMatched">0</div>
+                <div class="stat-label">Coincidencias</div>
+              </div>
+              <div class="stat-card">
+                <div class="stat-value" id="statNewCols">0</div>
+                <div class="stat-label">Columnas Nuevas</div>
+              </div>
+              <div class="stat-card">
+                <div class="stat-value" id="statUnmatched">0</div>
+                <div class="stat-label">Nuevas Filas Añadidas</div>
+              </div>
+            </div>
+          </div>
+
+          <div style="text-align: center; margin: 1.5rem 0;">
+            <button class="btn btn-primary" id="btnDownload" style="background: linear-gradient(135deg, #059669 0%, #10b981 100%); font-size: 1.1rem; padding: 1rem 3rem;">
+              📥 Descargar Archivo Excel Combinado
+            </button>
+          </div>
+
+          <!-- Tabla de Previsualización -->
+          <div class="preview-container">
+            <div class="preview-header">
+              <h3>👀 Previsualización del Resultado (Primeras 50 filas)</h3>
+              <span style="font-size: 0.8rem; color: var(--text-secondary);" id="previewRowsCount">Mostrando 0 de 0 filas</span>
+            </div>
+            <div class="preview-table-wrapper">
+              <table class="preview-table" id="tablePreview">
+                <thead>
+                  <tr id="tablePreviewHeaders">
+                    <!-- Dinámico -->
+                  </tr>
+                </thead>
+                <tbody id="tablePreviewBody">
+                  <!-- Dinámico -->
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- Mensajes de Error Comunes -->
+      <div class="error-message" id="errorMessage">
+        <span>⚠</span>
+        <span id="errorText">Ha ocurrido un error inesperado.</span>
+      </div>
+
+      <!-- Barra de Navegación del Wizard -->
+      <div class="actions-container">
+        <button class="btn btn-secondary" id="btnPrev" disabled>← Anterior</button>
+        <button class="btn btn-primary" id="btnNext" disabled>Siguiente →</button>
+      </div>
+
+    </div>
+  </main>
+
+  <!-- Cargando... Overlay -->
+  <div class="loading-overlay" id="loadingOverlay">
+    <div class="spinner"></div>
+    <div class="loading-text" id="loadingText">Procesando archivos...</div>
+  </div>
+
+  <!-- Pie de página -->
+  <footer>
+    <p>Excel Merge Web Tool &bull; Procesamiento del lado del cliente sin almacenamiento de datos.</p>
+  </footer>
+
+  <!-- Controladores del Wizard y la App -->
+  <script src="js/excelParser.js"></script>
+  <script src="js/mergeEngine.js"></script>
+  <script src="js/excelWriter.js"></script>
+  <script src="js/app.js"></script>
+</body>
+</html>
