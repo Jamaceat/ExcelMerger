@@ -18,7 +18,7 @@ services:
       # Cachés persistentes en el workspace y variables de entorno
       - node_modules_cache:/app/workspace/node_modules
       - gradle_cache:/root/.gradle
-      - android_cache:/app/workspace/android
+      - android_cache:/app/workspace-android-cache
       - npm_cache:/root/.npm
 
 volumes:

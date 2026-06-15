@@ -8,6 +8,7 @@ echo "=========================================================="
 
 WORKSPACE="/app/workspace"
 SRC_HOST="/app/src-host"
+ANDROID_CACHE="/app/workspace-android-cache"
 
 # 1. Preparar workspace: sincronizar código fuente SIN destruir cachés
 echo "=== 1. Sincronizando código fuente al workspace ==="
@@ -26,11 +27,18 @@ rsync -a --delete \
 
 cd "$WORKSPACE"
 
+# Restaurar la caché de la carpeta android si existe en el volumen
+if [ -d "$ANDROID_CACHE" ] && [ -f "$ANDROID_CACHE/build.gradle" ]; then
+  echo "=== 1.1 Restaurando caché de la carpeta android/ ==="
+  mkdir -p android
+  rsync -a --delete "$ANDROID_CACHE/" android/
+fi
+
 # 2. Instalar dependencias de Node.js (usa cache persistente)
 echo "=== 2. Instalando dependencias de Node.js ==="
 npm install
 
-# 3. Expo prebuild SIN --clean (reutiliza el directorio android/ del volumen)
+# 3. Expo prebuild (ahora se puede limpiar sin conflictos EBUSY porque android/ no es un punto de montaje directo)
 echo "=== 3. Ejecutando Expo Prebuild (Android) ==="
 if [ -d "android" ] && [ -f "android/build.gradle" ]; then
   echo "    → Directorio android/ existente encontrado, ejecutando prebuild incremental..."
@@ -47,6 +55,11 @@ cd android
   --no-daemon \
   --build-cache \
   -Dorg.gradle.caching=true
+
+# Guardar la caché de vuelta en el volumen persistente antes de terminar
+echo "=== 4.1 Guardando caché de la carpeta android/ ==="
+mkdir -p "$ANDROID_CACHE"
+rsync -a --delete "$WORKSPACE/android/" "$ANDROID_CACHE/"
 
 # 5. Copiar APK a la carpeta de salida
 echo "=== 5. Copiando APK a la carpeta de salida ==="

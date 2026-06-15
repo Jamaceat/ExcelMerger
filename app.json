@@ -11,6 +11,7 @@
       "icon": "./assets/images/icon.png"
     },
     "android": {
+      "largeHeap": true,
       "package": "com.jamaceat.edwincobra",
       "adaptiveIcon": {
         "backgroundColor": "#E6F4FE",

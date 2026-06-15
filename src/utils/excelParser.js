@@ -4,7 +4,7 @@
  */
 
 import { Platform } from 'react-native';
-import * as FileSystem from 'expo-file-system';
+import { File as ExpoFile } from 'expo-file-system';
 import * as XLSX from 'xlsx';
 
 /**
@@ -29,47 +29,35 @@ export async function parseExcelFile(fileUri) {
         cellNF: true,
       });
     } else {
-      let readUri = fileUri;
-      let isTempFile = false;
-      const tempFilePath = FileSystem.cacheDirectory + 'temp_excel_parse_' + Date.now() + '.xlsx';
-
-      // Si es un content:// URI, debemos copiarlo al directorio de caché primero para poder leerlo
-      if (fileUri.startsWith('content://')) {
-        await FileSystem.copyAsync({
-          from: fileUri,
-          to: tempFilePath,
-        });
-        readUri = tempFilePath;
-        isTempFile = true;
-      }
-
-      // En entorno móvil (Android/iOS), leer usando expo-file-system
-      const fileContent = await FileSystem.readAsStringAsync(readUri, {
-        encoding: FileSystem.EncodingType.Base64,
-      });
+      console.log(`[excelParser] Intentando leer archivo en móvil con la API moderna de File. URI: ${fileUri}`);
       
-      // Parsear el contenido Base64 con SheetJS
-      workbook = XLSX.read(fileContent, {
-        type: 'base64',
+      // Crear instancia de File con la URI (soporta content:// y file:// automáticamente)
+      const file = new ExpoFile(fileUri);
+      
+      // Validar si existe y obtener tamaño
+      const size = file.size;
+      console.log(`[excelParser] Tamaño del archivo obtenido: ${size} bytes`);
+      
+      // Leer el archivo como Uint8Array de forma eficiente en memoria
+      const uint8Array = await file.bytes();
+      console.log(`[excelParser] Archivo leído con éxito (${uint8Array.length} bytes). Parseando con SheetJS...`);
+      
+      // Parsear el Uint8Array con SheetJS usando type: 'array'
+      workbook = XLSX.read(uint8Array, {
+        type: 'array',
         cellStyles: true,
         cellFormulas: true,
         cellNF: true,
       });
-
-      // Limpiar el archivo temporal
-      if (isTempFile) {
-        try {
-          await FileSystem.deleteAsync(tempFilePath, { idempotent: true });
-        } catch (cleanupError) {
-          console.warn('Error al limpiar archivo temporal:', cleanupError);
-        }
-      }
+      
+      console.log(`[excelParser] Archivo Excel parseado con éxito.`);
     }
     
     return workbook;
   } catch (error) {
     console.error('Error al leer/parsear Excel:', error);
-    throw new Error('No se pudo abrir el archivo Excel. Asegúrate de que sea un archivo de hoja de cálculo válido (.xlsx o .xls).');
+    // Proporcionar detalles adicionales si es posible para depurar
+    throw new Error(`No se pudo abrir el archivo Excel. Asegúrate de que sea un archivo de hoja de cálculo válido: ${error.message || error}`);
   }
 }
 
