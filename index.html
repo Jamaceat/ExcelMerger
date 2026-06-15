@@ -238,10 +238,10 @@
               </div>
               
               <div class="color-picker-wrapper">
-                <input type="color" id="pickerUnmatched" value="#FFCCCC">
+                <input type="color" id="pickerUnmatched" value="#00FF11">
                 <div>
                   <div style="font-size: 0.8rem; font-weight: 600;">Filas sin match</div>
-                  <div style="font-size: 0.7rem; color: var(--text-secondary);">Defecto: Rojo suave</div>
+                  <div style="font-size: 0.7rem; color: var(--text-secondary);">Defecto: Verde brillante</div>
                 </div>
               </div>
             </div>
@@ -250,7 +250,7 @@
         
         <!-- Botón para ejecutar el merge -->
         <div style="text-align: center; margin: 2rem 0 1rem;">
-          <button class="btn btn-primary" id="btnExecuteMerge" style="font-size: 1.1rem; padding: 1rem 2.5rem;">
+          <button class="btn btn-primary btn-lg" id="btnExecuteMerge">
             🔄 Ejecutar Proceso de Merge
           </button>
         </div>
@@ -279,9 +279,12 @@
             </div>
           </div>
 
-          <div style="text-align: center; margin: 1.5rem 0;">
-            <button class="btn btn-primary" id="btnDownload" style="background: linear-gradient(135deg, #059669 0%, #10b981 100%); font-size: 1.1rem; padding: 1rem 3rem;">
+          <div style="text-align: center; margin: 1.5rem 0; display: flex; justify-content: center; gap: 1rem; flex-wrap: wrap;">
+            <button class="btn btn-success btn-lg" id="btnDownload">
               📥 Descargar Archivo Excel Combinado
+            </button>
+            <button class="btn btn-secondary btn-lg" id="btnResetProcess">
+              🔄 Reiniciar Proceso
             </button>
           </div>
 

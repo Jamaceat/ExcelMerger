@@ -131,6 +131,41 @@ async function generateExcel(
     }
   }
 
+  // Auto-ajustar el ancho de las columnas (expandirlas para evitar que se muestren contraídas o en notación científica)
+  for (let c = 0; c < totalCols; c++) {
+    const colName = headerOrder[c];
+    let maxLen = colName ? colName.length : 10;
+
+    for (let r = 0; r < mergedData.length; r++) {
+      const val = mergedData[r][colName];
+      const colFormat = columnFormats && columnFormats[colName];
+      
+      let strVal = '';
+      if (val !== undefined && val !== null) {
+        if (colFormat && typeof val === 'number') {
+          try {
+            strVal = XLSX.SSF.format(colFormat, val);
+          } catch (e) {
+            strVal = String(val);
+          }
+        } else if (typeof val === 'number') {
+          // Si es un entero grande (como celular/documento), evitar notación científica al estimar ancho
+          strVal = Number.isInteger(val) ? val.toFixed(0) : String(val);
+        } else {
+          strVal = String(val);
+        }
+      }
+
+      if (strVal.length > maxLen) {
+        maxLen = strVal.length;
+      }
+    }
+
+    // Establecer un ancho proporcional con un mínimo de 12 y máximo de 50 para evitar columnas deformes
+    const colWidth = Math.min(50, Math.max(12, maxLen + 4));
+    sheet.column(c + 1).width(colWidth);
+  }
+
   // 7. Generar descarga
   const cleanName = baseFileName.replace(/\.[^/.]+$/, "");
   const outputFileName = `${cleanName}_merged.xlsx`;

@@ -92,6 +92,7 @@ const dom = {
   btnExecuteMerge: document.getElementById('btnExecuteMerge'),
   resultsContainer: document.getElementById('resultsContainer'),
   btnDownload: document.getElementById('btnDownload'),
+  btnResetProcess: document.getElementById('btnResetProcess'),
 
   // Stats
   statBaseRows: document.getElementById('statBaseRows'),
@@ -612,6 +613,11 @@ function setupStepEvents() {
     }
   });
 
+  // Reiniciar Proceso (Paso 6)
+  dom.btnResetProcess.addEventListener('click', () => {
+    resetWholeProcess();
+  });
+
   // Cambio en checkbox de ignorar filas ocultas
   dom.checkIgnoreHidden.addEventListener('change', () => {
     const ignoreHidden = dom.checkIgnoreHidden.checked;
@@ -842,7 +848,7 @@ function renderPreviewTable(mergedData, baseCols, newCols) {
     // Aplicar estilos estéticos de previsualización según estado de la fila
     if (row['__isUnmatched'] === true) {
       // Fila añadida (sin coincidencia)
-      tr.style.background = 'rgba(239, 68, 68, 0.1)';
+      tr.style.background = hexToRgba(dom.pickerUnmatched.value, 0.15);
       tr.style.borderLeft = `3px solid ${dom.pickerUnmatched.value}`;
     } else if (row['__isMatched'] === true) {
       // Coincidencia
@@ -901,4 +907,47 @@ function showError(msg) {
 
 function hideError() {
   dom.errorMessage.classList.remove('show');
+}
+
+/**
+ * Convierte un color hexadecimal a una cadena RGBA con la opacidad dada.
+ * @param {string} hex 
+ * @param {number} alpha 
+ * @returns {string}
+ */
+function hexToRgba(hex, alpha) {
+  if (!hex) return `rgba(255, 255, 255, ${alpha})`;
+  const clean = hex.startsWith('#') ? hex.slice(1) : hex;
+  const r = parseInt(clean.substring(0, 2), 16);
+  const g = parseInt(clean.substring(2, 4), 16);
+  const b = parseInt(clean.substring(4, 6), 16);
+  return `rgba(${r}, ${g}, ${b}, ${alpha})`;
+}
+
+/**
+ * Reinicia por completo el estado del wizard y la interfaz de usuario.
+ */
+function resetWholeProcess() {
+  // Resetear archivos y estados del parser
+  resetFile('base');
+  resetFile('merge');
+  
+  state.mergeResults = null;
+  
+  // Resetear valores de visualización y inputs a valores por defecto
+  dom.resultsContainer.style.display = 'none';
+  dom.pickerHighlight.value = '#FFA500';
+  dom.pickerUnmatched.value = '#00FF11';
+  dom.inputSheetName.value = 'Merge_Result';
+  
+  dom.selectFilterColumn.innerHTML = '<option value="">-- Sin filtro / Omitir --</option>';
+  dom.selectFilterValue.innerHTML = '<option value="">-- Selecciona un valor --</option>';
+  dom.selectFilterValue.disabled = true;
+  dom.filterPreviewBadge.style.display = 'none';
+  
+  // Ocultar mensajes de error residuales
+  hideError();
+  
+  // Regresar al paso 1 del wizard
+  goToStep(1);
 }

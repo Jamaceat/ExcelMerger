@@ -14,4 +14,9 @@ Este archivo registra el avance de la implementación. Las tareas completadas ap
 - [x] ~~Documentación del Proyecto (`README.md`)~~
 - [x] ~~Verificación y pruebas de integración locales~~
 - [x] ~~Corrección de formato de celdas (fechas y números con formato) al generar el Excel final y previsualizar~~
+- [x] ~~Configurar color verde (#00FF11 / rgb(0,255,17)) como valor por defecto para filas sin coincidencia~~
+- [x] ~~Implementar botón y funcionalidad de reiniciar proceso desde el paso final~~
+- [x] ~~Implementar auto-ajuste de ancho de columnas (autofit/expansión) para evitar celdas contraídas o notación científica~~
+- [x] ~~Diseño responsive adaptativo para dispositivos móviles y tablets (`css/styles.css`, `index.html`)~~
+
 
