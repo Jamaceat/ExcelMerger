@@ -32,6 +32,10 @@ const state = {
     column: '',
     value: ''
   },
+  columnFormats: {
+    base: {},
+    merge: {}
+  },
   mergeResults: null
 };
 
@@ -82,6 +86,7 @@ const dom = {
 
   // Paso 6: Configuración e Inicio de Merge
   inputSheetName: document.getElementById('inputSheetName'),
+  checkIgnoreHidden: document.getElementById('checkIgnoreHidden'),
   pickerHighlight: document.getElementById('pickerHighlight'),
   pickerUnmatched: document.getElementById('pickerUnmatched'),
   btnExecuteMerge: document.getElementById('btnExecuteMerge'),
@@ -359,6 +364,9 @@ function resetFile(type) {
   state.sheets[type] = null;
   state.headers[type] = null;
   state.data[type] = null;
+  if (state.columnFormats) {
+    state.columnFormats[type] = {};
+  }
 
   const dropzone = type === 'base' ? dom.dropzoneBase : dom.dropzoneMerge;
   const info = type === 'base' ? dom.infoBase : dom.infoMerge;
@@ -459,8 +467,15 @@ function selectSheet(sheetName, type) {
   const headerInfo = detectHeader(sheet);
   state.headers[type] = headerInfo;
   
-  // Extraer datos usando la fila de cabecera detectada
-  state.data[type] = extractData(sheet, headerInfo.headerRow, headerInfo.columns);
+  // Extraer datos usando la fila de cabecera detectada y el checkbox de ignorar filas ocultas
+  const ignoreHidden = dom.checkIgnoreHidden ? dom.checkIgnoreHidden.checked : true;
+  state.data[type] = extractData(sheet, headerInfo.headerRow, headerInfo.columns, ignoreHidden);
+
+  // Detección automática de formatos de columna
+  if (!state.columnFormats) {
+    state.columnFormats = { base: {}, merge: {} };
+  }
+  state.columnFormats[type] = detectColumnFormats(sheet, headerInfo);
 
   // Reset de variables que dependan de la hoja cargada
   if (type === 'base') {
@@ -573,6 +588,11 @@ function setupStepEvents() {
         const unmatchedColor = dom.pickerUnmatched.value;
         const sheetName = dom.inputSheetName.value || 'Merge_Result';
 
+        const mergedFormats = {
+          ...(state.columnFormats.merge || {}),
+          ...(state.columnFormats.base || {})
+        };
+
         generateExcel(
           state.workbooks.base,
           state.files.base.name,
@@ -581,13 +601,31 @@ function setupStepEvents() {
           state.mergeResults.newColumns,
           highlightColor,
           unmatchedColor,
-          sheetName
+          sheetName,
+          mergedFormats
         );
       } catch (err) {
         showError('Error al exportar Excel: ' + err.message);
       } finally {
         hideLoading();
       }
+    }
+  });
+
+  // Cambio en checkbox de ignorar filas ocultas
+  dom.checkIgnoreHidden.addEventListener('change', () => {
+    const ignoreHidden = dom.checkIgnoreHidden.checked;
+    if (state.sheets.base) {
+      const sheet = state.workbooks.base.Sheets[state.sheets.base];
+      state.data.base = extractData(sheet, state.headers.base.headerRow, state.headers.base.columns, ignoreHidden);
+    }
+    if (state.sheets.merge) {
+      const sheet = state.workbooks.merge.Sheets[state.sheets.merge];
+      state.data.merge = extractData(sheet, state.headers.merge.headerRow, state.headers.merge.columns, ignoreHidden);
+    }
+    // Si hay un filtro configurado, actualizar la previsualización
+    if (state.filter.column && state.filter.value) {
+      updateFilterPreview();
     }
   });
 }
@@ -631,10 +669,23 @@ function populateFilterValueOptions(columnName) {
   if (!state.data.merge) return;
 
   const uniqueVals = getUniqueValues(state.data.merge, columnName);
+  const colFormat = (state.columnFormats.merge && state.columnFormats.merge[columnName]) ||
+                     (state.columnFormats.base && state.columnFormats.base[columnName]);
+
   uniqueVals.forEach(val => {
     const opt = document.createElement('option');
     opt.value = val;
-    opt.textContent = val;
+    
+    let label = val;
+    const numVal = Number(val);
+    if (colFormat && !isNaN(numVal) && val !== '') {
+      try {
+        label = XLSX.SSF.format(colFormat, numVal);
+      } catch (e) {
+        // Fallback
+      }
+    }
+    opt.textContent = label;
     dom.selectFilterValue.appendChild(opt);
   });
 }
@@ -800,7 +851,21 @@ function renderPreviewTable(mergedData, baseCols, newCols) {
 
     headers.forEach(h => {
       const td = document.createElement('td');
-      td.textContent = row[h] !== undefined ? row[h] : '';
+      const rawVal = row[h];
+      let displayVal = rawVal !== undefined ? rawVal : '';
+
+      const colFormat = (state.columnFormats.base && state.columnFormats.base[h]) ||
+                         (state.columnFormats.merge && state.columnFormats.merge[h]);
+
+      if (colFormat && typeof rawVal === 'number') {
+        try {
+          displayVal = XLSX.SSF.format(colFormat, rawVal);
+        } catch (e) {
+          // Fallback al valor crudo
+        }
+      }
+
+      td.textContent = displayVal;
       
       // Resaltar celdas de columnas nuevas en filas coincidentes
       if (newCols.includes(h) && row['__isUnmatched'] !== true) {

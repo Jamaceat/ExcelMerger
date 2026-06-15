@@ -33,7 +33,8 @@ function generateExcel(
   newColumns, 
   highlightColor, 
   unmatchedColor, 
-  newSheetName
+  newSheetName,
+  columnFormats
 ) {
   // 1. Clonar el workbook original para no alterar el estado de la aplicación
   const newWorkbook = {
@@ -87,6 +88,11 @@ function generateExcel(
         ws[cellRef] = { t: 's', v: '' };
       }
 
+      // Aplicar formato de número/fecha si existe
+      if (columnFormats && columnFormats[colName] && ws[cellRef]) {
+        ws[cellRef].z = columnFormats[colName];
+      }
+
       // Inicializar objeto de estilos si no existe
       if (!ws[cellRef].s) {
         ws[cellRef].s = {};
@@ -126,5 +132,5 @@ function generateExcel(
   const cleanName = baseFileName.replace(/\.[^/.]+$/, "");
   const outputFileName = `${cleanName}_merged.xlsx`;
   
-  XLSX.writeFile(newWorkbook, outputFileName);
+  XLSX.writeFile(newWorkbook, outputFileName, { cellStyles: true });
 }

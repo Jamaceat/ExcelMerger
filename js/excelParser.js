@@ -14,7 +14,12 @@ function parseExcelFile(file) {
     reader.onload = (e) => {
       try {
         const data = new Uint8Array(e.target.result);
-        const workbook = XLSX.read(data, { type: 'array' });
+        const workbook = XLSX.read(data, { 
+          type: 'array',
+          cellStyles: true,
+          cellFormulas: true,
+          cellNF: true
+        });
         resolve(workbook);
       } catch (err) {
         reject(new Error('No se pudo parsear el archivo Excel. Asegúrate de que sea un archivo válido.'));
@@ -95,19 +100,57 @@ function detectHeader(sheet) {
 }
 
 /**
+ * Detecta los formatos de número/fecha para cada columna en la hoja.
+ * @param {any} sheet - Hoja de SheetJS
+ * @param {{ headerRow: number, columns: string[] }} headerInfo 
+ * @returns {Record<string, string>} Mapeo de nombre de columna a formato (.z)
+ */
+function detectColumnFormats(sheet, headerInfo) {
+  const formats = {};
+  if (!sheet || !sheet['!ref'] || !headerInfo || !headerInfo.columns) {
+    return formats;
+  }
+
+  const range = XLSX.utils.decode_range(sheet['!ref']);
+  const columns = headerInfo.columns;
+
+  for (let c = range.s.c; c <= range.e.c; c++) {
+    const colName = columns[c - range.s.c];
+    if (!colName) continue;
+
+    // Buscar el primer formato no vacío en la columna (debajo de la fila de cabecera)
+    for (let r = headerInfo.headerRow + 1; r <= range.e.r; r++) {
+      const cellRef = XLSX.utils.encode_cell({ r, c });
+      const cell = sheet[cellRef];
+      if (cell && cell.z) {
+        formats[colName] = cell.z;
+        break; // Pasamos a la siguiente columna al encontrar el primer formato
+      }
+    }
+  }
+
+  return formats;
+}
+
+/**
  * Extrae los datos de la hoja a partir de la fila de cabecera como un array de objetos.
  * @param {any} sheet 
  * @param {number} headerRow 
  * @param {string[]} columns 
  * @returns {any[]} Array de objetos
  */
-function extractData(sheet, headerRow, columns) {
+function extractData(sheet, headerRow, columns, ignoreHidden = false) {
   if (!sheet || !sheet['!ref']) return [];
   
   const range = XLSX.utils.decode_range(sheet['!ref']);
   const data = [];
   
   for (let r = headerRow + 1; r <= range.e.r; r++) {
+    // Si ignoreHidden está activo y la fila está oculta por filtros, la saltamos
+    if (ignoreHidden && sheet['!rows'] && sheet['!rows'][r] && sheet['!rows'][r].hidden) {
+      continue;
+    }
+
     let isRowEmpty = true;
     const rowObject = {};
     

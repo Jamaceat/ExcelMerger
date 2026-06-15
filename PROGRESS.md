@@ -13,3 +13,5 @@ Este archivo registra el avance de la implementación. Las tareas completadas ap
 - [x] ~~Controlador General de la Aplicación (`js/app.js`)~~
 - [x] ~~Documentación del Proyecto (`README.md`)~~
 - [x] ~~Verificación y pruebas de integración locales~~
+- [x] ~~Corrección de formato de celdas (fechas y números con formato) al generar el Excel final y previsualizar~~
+

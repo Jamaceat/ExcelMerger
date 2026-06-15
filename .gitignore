@@ -1,1 +1,3 @@
 exampleExcels/
+**/node_modules
+*.xlsx
