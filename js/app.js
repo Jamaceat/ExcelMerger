@@ -580,7 +580,7 @@ function setupStepEvents() {
   });
 
   // Descargar Archivo (Paso 6)
-  dom.btnDownload.addEventListener('click', () => {
+  dom.btnDownload.addEventListener('click', async () => {
     if (state.mergeResults) {
       showLoading('Generando y estilizando archivo Excel...');
       try {
@@ -593,8 +593,8 @@ function setupStepEvents() {
           ...(state.columnFormats.base || {})
         };
 
-        generateExcel(
-          state.workbooks.base,
+        await generateExcel(
+          state.files.base,
           state.files.base.name,
           state.mergeResults.mergedData,
           state.headers.base.columns,

@@ -1,6 +1,6 @@
 /**
  * excelWriter.js
- * Módulo para generar y descargar el archivo Excel resultante con estilos de celda.
+ * Módulo para generar y descargar el archivo Excel resultante con estilos de celda usando xlsx-populate.
  */
 
 /**
@@ -14,9 +14,10 @@ function cleanHexColor(hexColor) {
 }
 
 /**
- * Genera el archivo Excel final aplicando estilos y descargándolo en el navegador.
+ * Genera el archivo Excel final aplicando estilos y descargándolo en el navegador,
+ * preservando todas las demás pestañas, gráficos, macros y metadatos del archivo base original.
  * 
- * @param {any} baseWorkbook - El objeto workbook original del Excel Base
+ * @param {File} baseFile - El archivo original (File object) de Excel Base
  * @param {string} baseFileName - Nombre del archivo Excel Base original
  * @param {any[]} mergedData - Datos cruzados
  * @param {string[]} baseColumns - Columnas de la hoja base
@@ -24,9 +25,10 @@ function cleanHexColor(hexColor) {
  * @param {string} highlightColor - Hexadecimal del color para columnas nuevas
  * @param {string} unmatchedColor - Hexadecimal del color para filas sin coincidencia
  * @param {string} newSheetName - Nombre deseado para la nueva pestaña
+ * @param {Record<string, string>} columnFormats - Mapeo de nombre de columna a formato (.z)
  */
-function generateExcel(
-  baseWorkbook, 
+async function generateExcel(
+  baseFile, 
   baseFileName, 
   mergedData, 
   baseColumns, 
@@ -36,101 +38,108 @@ function generateExcel(
   newSheetName,
   columnFormats
 ) {
-  // 1. Clonar el workbook original para no alterar el estado de la aplicación
-  const newWorkbook = {
-    SheetNames: [...baseWorkbook.SheetNames],
-    Sheets: { ...baseWorkbook.Sheets }
-  };
+  // 1. Obtener el ArrayBuffer del archivo base original
+  const arrayBuffer = await baseFile.arrayBuffer();
 
-  // 2. Establecer el orden de las columnas del sheet de resultados
-  const headerOrder = [...baseColumns, ...newColumns];
+  // 2. Cargar el workbook completo preservando todo
+  const workbook = await XlsxPopulate.fromDataAsync(arrayBuffer);
 
-  // 3. Crear el nuevo sheet a partir del dataset
-  // Al pasar header: headerOrder, SheetJS filtra las propiedades internas como __isUnmatched, etc.
-  const ws = XLSX.utils.json_to_sheet(mergedData, { header: headerOrder });
-
-  // 4. Aplicar estilos a las celdas
-  const cleanHighlight = cleanHexColor(highlightColor);
-  const cleanUnmatched = cleanHexColor(unmatchedColor);
-  
-  const range = XLSX.utils.decode_range(ws['!ref']);
-  const newColsSet = new Set(newColumns);
-
-  for (let r = range.s.r; r <= range.e.r; r++) {
-    // Si es la fila 0 (cabecera), coloreamos las cabeceras de columnas nuevas
-    if (r === 0) {
-      for (let c = range.s.c; c <= range.e.c; c++) {
-        const colName = headerOrder[c];
-        if (newColsSet.has(colName)) {
-          const cellRef = XLSX.utils.encode_cell({ r, c });
-          if (!ws[cellRef]) ws[cellRef] = { t: 's', v: colName };
-          ws[cellRef].s = {
-            fill: { fgColor: { rgb: cleanHighlight } },
-            font: { bold: true, color: { rgb: '000000' } }
-          };
-        }
-      }
-      continue;
-    }
-
-    // Fila de datos correspondientes (0-indexed en el array de datos es r - 1)
-    const dataRow = mergedData[r - 1];
-    if (!dataRow) continue;
-
-    const isUnmatched = dataRow['__isUnmatched'] === true;
-
-    for (let c = range.s.c; c <= range.e.c; c++) {
-      const cellRef = XLSX.utils.encode_cell({ r, c });
-      const colName = headerOrder[c];
-
-      // Creamos la celda si no existe pero debería tener datos
-      if (!ws[cellRef]) {
-        ws[cellRef] = { t: 's', v: '' };
-      }
-
-      // Aplicar formato de número/fecha si existe
-      if (columnFormats && columnFormats[colName] && ws[cellRef]) {
-        ws[cellRef].z = columnFormats[colName];
-      }
-
-      // Inicializar objeto de estilos si no existe
-      if (!ws[cellRef].s) {
-        ws[cellRef].s = {};
-      }
-
-      if (isUnmatched) {
-        // Si la fila completa no tiene coincidencia, coloreamos con unmatchedColor
-        ws[cellRef].s.fill = { fgColor: { rgb: cleanUnmatched } };
-      } else if (newColsSet.has(colName)) {
-        // Si la fila tiene coincidencia, pero es una celda en una columna nueva
-        ws[cellRef].s.fill = { fgColor: { rgb: cleanHighlight } };
-      }
-    }
-  }
-
-  // 5. Determinar un nombre de hoja que no exista
+  // 3. Determinar un nombre de hoja único que no exista
   let finalSheetName = (newSheetName || 'Merge_Result').trim();
   if (finalSheetName.length > 31) {
     // Excel limita los nombres de pestañas a 31 caracteres
     finalSheetName = finalSheetName.substring(0, 31);
   }
   
+  const existingSheetNames = workbook.sheets().map(s => s.name().toLowerCase());
   let suffix = 2;
   let uniqueSheetName = finalSheetName;
-  while (newWorkbook.SheetNames.includes(uniqueSheetName)) {
+  while (existingSheetNames.includes(uniqueSheetName.toLowerCase())) {
     const suffixStr = `_${suffix}`;
     const maxLen = 31 - suffixStr.length;
     uniqueSheetName = finalSheetName.substring(0, maxLen) + suffixStr;
     suffix++;
   }
 
-  // 6. Añadir el nuevo sheet al workbook clonado
-  newWorkbook.SheetNames.push(uniqueSheetName);
-  newWorkbook.Sheets[uniqueSheetName] = ws;
+  // 4. Añadir el nuevo sheet al workbook
+  const sheet = workbook.addSheet(uniqueSheetName);
+
+  // 5. Preparar los datos en una matriz 2D (cabeceras + filas)
+  const headerOrder = [...baseColumns, ...newColumns];
+  const gridData = [];
+  gridData.push(headerOrder); // Fila 1: Cabeceras
+
+  mergedData.forEach(row => {
+    const rowData = [];
+    headerOrder.forEach(col => {
+      const val = row[col];
+      rowData.push(val !== undefined && val !== null ? val : '');
+    });
+    gridData.push(rowData);
+  });
+
+  // Escribir todos los datos de golpe en A1
+  sheet.cell("A1").value(gridData);
+
+  // 6. Aplicar estilos y formatos usando rangos para mayor rendimiento
+  const cleanHighlight = cleanHexColor(highlightColor);
+  const cleanUnmatched = cleanHexColor(unmatchedColor);
+  const newColsSet = new Set(newColumns);
+  const totalRows = gridData.length; // 1 (cabecera) + data.length
+  const totalCols = headerOrder.length;
+
+  // Estilizar cabeceras (Fila 1)
+  for (let c = 0; c < totalCols; c++) {
+    const colName = headerOrder[c];
+    const cell = sheet.cell(1, c + 1);
+    if (newColsSet.has(colName)) {
+      cell.style({
+        fill: { type: "solid", color: cleanHighlight },
+        bold: true
+      });
+    } else {
+      cell.style("bold", true);
+    }
+  }
+
+  // Estilizar columnas por formato de número/fecha
+  for (let c = 0; c < totalCols; c++) {
+    const colName = headerOrder[c];
+    if (columnFormats && columnFormats[colName]) {
+      // Aplicar formato a toda la columna (excluyendo cabecera)
+      sheet.range(2, c + 1, totalRows, c + 1).style("numberFormat", columnFormats[colName]);
+    }
+  }
+
+  // Estilizar fondo para columnas nuevas (en filas con match)
+  for (let c = 0; c < totalCols; c++) {
+    const colName = headerOrder[c];
+    if (newColsSet.has(colName)) {
+      // Aplicar highlight a toda la columna nueva
+      sheet.range(2, c + 1, totalRows, c + 1).style("fill", { type: "solid", color: cleanHighlight });
+    }
+  }
+
+  // Estilizar filas de datos sin coincidencia (unmatched)
+  // Las filas sin coincidencia tienen '__isUnmatched' en true
+  for (let r = 0; r < mergedData.length; r++) {
+    const dataRow = mergedData[r];
+    if (dataRow['__isUnmatched'] === true) {
+      const excelRowIndex = r + 2; // Fila 1 es cabecera, los datos empiezan en fila 2
+      // Colorear toda la fila con unmatchedColor
+      sheet.range(excelRowIndex, 1, excelRowIndex, totalCols).style("fill", { type: "solid", color: cleanUnmatched });
+    }
+  }
 
   // 7. Generar descarga
   const cleanName = baseFileName.replace(/\.[^/.]+$/, "");
   const outputFileName = `${cleanName}_merged.xlsx`;
   
-  XLSX.writeFile(newWorkbook, outputFileName, { cellStyles: true });
+  const blob = await workbook.outputAsync();
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = outputFileName;
+  a.click();
+  URL.revokeObjectURL(url);
 }
