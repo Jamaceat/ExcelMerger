@@ -8,11 +8,11 @@ import {
   StyleSheet, 
   View, 
   Text, 
-  SafeAreaView, 
   ActivityIndicator,
   Modal,
   Platform
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { Colors } from '../theme/colors';
 import WizardProgress from '../components/WizardProgress';
 import Step1Upload from '../components/Step1Upload';
@@ -166,7 +166,7 @@ export default function HomeScreen() {
   };
 
   return (
-    <SafeAreaView style={styles.container}>
+    <SafeAreaView style={styles.container} edges={['top', 'left', 'right']}>
       {/* Cabecera Premium */}
       <View style={styles.header}>
         <Text style={styles.headerTitle}>EdwinCobra</Text>

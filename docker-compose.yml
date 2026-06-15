@@ -1,0 +1,21 @@
+version: '3.8'
+
+services:
+  apk-builder:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: edwincobra_apk_builder
+    environment:
+      - USER_ID=${USER_ID}
+      - GROUP_ID=${GROUP_ID}
+    volumes:
+      # Montaje para sacar el APK compilado al host
+      - ./dist:/output
+      # Caché de dependencias para acelerar futuras compilaciones
+      - node_modules_cache:/app/node_modules
+      - gradle_cache:/root/.gradle
+
+volumes:
+  node_modules_cache:
+  gradle_cache:

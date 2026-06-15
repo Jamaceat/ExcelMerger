@@ -29,8 +29,22 @@ export async function parseExcelFile(fileUri) {
         cellNF: true,
       });
     } else {
+      let readUri = fileUri;
+      let isTempFile = false;
+      const tempFilePath = FileSystem.cacheDirectory + 'temp_excel_parse_' + Date.now() + '.xlsx';
+
+      // Si es un content:// URI, debemos copiarlo al directorio de caché primero para poder leerlo
+      if (fileUri.startsWith('content://')) {
+        await FileSystem.copyAsync({
+          from: fileUri,
+          to: tempFilePath,
+        });
+        readUri = tempFilePath;
+        isTempFile = true;
+      }
+
       // En entorno móvil (Android/iOS), leer usando expo-file-system
-      const fileContent = await FileSystem.readAsStringAsync(fileUri, {
+      const fileContent = await FileSystem.readAsStringAsync(readUri, {
         encoding: FileSystem.EncodingType.Base64,
       });
       
@@ -41,6 +55,15 @@ export async function parseExcelFile(fileUri) {
         cellFormulas: true,
         cellNF: true,
       });
+
+      // Limpiar el archivo temporal
+      if (isTempFile) {
+        try {
+          await FileSystem.deleteAsync(tempFilePath, { idempotent: true });
+        } catch (cleanupError) {
+          console.warn('Error al limpiar archivo temporal:', cleanupError);
+        }
+      }
     }
     
     return workbook;

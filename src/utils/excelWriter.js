@@ -59,10 +59,33 @@ export async function generateExcel(
       const response = await fetch(baseFileUri);
       arrayBuffer = await response.arrayBuffer();
     } else {
-      const fileContent = await FileSystem.readAsStringAsync(baseFileUri, {
+      let readUri = baseFileUri;
+      let isTempFile = false;
+      const tempFilePath = FileSystem.cacheDirectory + 'temp_excel_write_' + Date.now() + '.xlsx';
+
+      // Si es un content:// URI, copiar a caché temporal
+      if (baseFileUri.startsWith('content://')) {
+        await FileSystem.copyAsync({
+          from: baseFileUri,
+          to: tempFilePath,
+        });
+        readUri = tempFilePath;
+        isTempFile = true;
+      }
+
+      const fileContent = await FileSystem.readAsStringAsync(readUri, {
         encoding: FileSystem.EncodingType.Base64,
       });
       arrayBuffer = Buffer.from(fileContent, 'base64');
+
+      // Limpiar archivo temporal
+      if (isTempFile) {
+        try {
+          await FileSystem.deleteAsync(tempFilePath, { idempotent: true });
+        } catch (cleanupError) {
+          console.warn('Error al limpiar archivo temporal de escritura:', cleanupError);
+        }
+      }
     }
 
     // 2. Cargar el workbook en ExcelJS
