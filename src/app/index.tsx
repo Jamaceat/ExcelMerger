@@ -224,7 +224,7 @@ export default function HomeScreen() {
   };
 
   return (
-    <SafeAreaView style={styles.container} edges={['top', 'left', 'right']}>
+    <SafeAreaView style={styles.container} edges={['top', 'left', 'right', 'bottom']}>
       {/* Cabecera Premium */}
       <View style={styles.header}>
         <Text style={styles.headerTitle}>EdwinCobra</Text>
