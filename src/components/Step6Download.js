@@ -4,7 +4,7 @@
  * ver estadísticas, previsualizar la tabla y descargar/compartir el archivo.
  */
 
-import React, { useState } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import {
   View,
   Text,
@@ -21,6 +21,7 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import { Colors } from '../theme/colors';
 import PreviewTable from './PreviewTable';
+import ProgressModal from './ProgressModal';
 import { generateExcel, UNMATCHED_BASE_COLOR } from '../utils/excelWriter';
 
 // Opciones de paletas premium para columnas nuevas
@@ -52,6 +53,7 @@ export default function Step6Download({
   preserveColors,
   rowColorMap,
   baseFileRawBytes,
+  baseFileLoadTimeMs,
   onRestart,
   onBack,
 }) {
@@ -69,6 +71,33 @@ export default function Step6Download({
   const [highlightColor, setHighlightColor] = useState('#FFA500');
   const [unmatchedColor, setUnmatchedColor] = useState('#991F72');
   const [generating, setGenerating] = useState(false);
+  const [generateProgress, setGenerateProgress] = useState(0);
+  const realProgressRef = useRef(0);
+
+  // Animación time-based: siempre avanza linealmente según tiempo estimado.
+  // Nunca congela. Cuando la operación termina, fill rápido hacia 100%.
+  useEffect(() => {
+    if (!generating) return;
+    realProgressRef.current = 0;
+    const animStart = Date.now();
+    // Estimación: generación suele tomar ~1.3× la carga del archivo base (bytes ya cacheados)
+    const estimatedMs = Math.max(2000, (baseFileLoadTimeMs || 3000) * 1.3);
+    const id = setInterval(() => {
+      setGenerateProgress(prev => {
+        if (realProgressRef.current >= 1.0) {
+          const gap = 1.0 - prev;
+          if (gap < 0.001) return 1.0;
+          return prev + gap * (0.25 + Math.random() * 0.15);
+        }
+        // Avance time-based: nunca congela
+        const elapsed = Date.now() - animStart;
+        const timeProgress = Math.min(elapsed / estimatedMs, 0.90);
+        const jitter = Math.random() * 0.004;
+        return Math.min(0.90, Math.max(prev, timeProgress + jitter));
+      });
+    }, 80);
+    return () => clearInterval(id);
+  }, [generating, baseFileLoadTimeMs]);
   const [appendUnmatchedBaseToEnd, setAppendUnmatchedBaseToEnd] = useState(false);
 
   // Modal para nombre del archivo resultante
@@ -76,9 +105,11 @@ export default function Step6Download({
   const [outputFileName, setOutputFileName] = useState(defaultBaseName);
 
   const handleGenerateAndShare = async () => {
+    realProgressRef.current = 0;
+    setGenerateProgress(0);
     setGenerating(true);
-    // Dejar que el spinner se renderice antes de iniciar trabajo pesado
     await new Promise(resolve => setTimeout(resolve, 80));
+    let success = false;
     try {
       await generateExcel(
         baseFile.uri,
@@ -95,7 +126,11 @@ export default function Step6Download({
         baseFileRawBytes || null,
         outputFileName || null,
         appendUnmatchedBaseToEnd,
+        (p) => { realProgressRef.current = p; },
       );
+      success = true;
+      // Esperar a que la animación llegue al 100%
+      await new Promise(resolve => setTimeout(resolve, 900));
     } catch (error) {
       console.error('Error al generar Excel:', error);
       Alert.alert(
@@ -104,6 +139,7 @@ export default function Step6Download({
       );
     } finally {
       setGenerating(false);
+      if (success) setGenerateProgress(0);
     }
   };
 
@@ -253,15 +289,19 @@ export default function Step6Download({
         <View style={{ height: 24 }} />
       </ScrollView>
 
-      {/* Modal: carga full-screen bloqueante */}
-      <Modal visible={generating} transparent animationType="fade">
-        <View style={styles.loadingOverlay}>
-          <View style={styles.loadingBox}>
-            <ActivityIndicator size="large" color={Colors.primary} />
-            <Text style={styles.loadingText}>Generando archivo...</Text>
-          </View>
-        </View>
-      </Modal>
+      {/* Modal de generación — Reanimated con animación de número */}
+      <ProgressModal
+        visible={generating}
+        message={
+          generateProgress < 0.2 ? 'Preparando workbook...' :
+          generateProgress < 0.65 ? 'Escribiendo datos...' :
+          generateProgress < 0.82 ? 'Ajustando columnas...' :
+          generateProgress < 0.90 ? 'Generando archivo...' :
+          'Compartiendo...'
+        }
+        progress={generateProgress}
+        color={Colors.primary}
+      />
 
       {/* Modal: nombre del archivo resultante */}
       <Modal
@@ -492,28 +532,6 @@ const styles = StyleSheet.create({
     fontSize: 11,
     color: Colors.textMuted,
     flex: 1,
-  },
-  loadingOverlay: {
-    flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.8)',
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  loadingBox: {
-    backgroundColor: Colors.backgroundLight,
-    padding: 28,
-    borderRadius: 16,
-    borderWidth: 1,
-    borderColor: Colors.cardBorder,
-    alignItems: 'center',
-    gap: 16,
-    width: 240,
-  },
-  loadingText: {
-    color: Colors.text,
-    fontSize: 13,
-    fontWeight: '600',
-    textAlign: 'center',
   },
   restartBtn: {
     flexDirection: 'row',

@@ -4,17 +4,16 @@
  */
 
 import React, { useState } from 'react';
-import { 
-  StyleSheet, 
-  View, 
-  Text, 
-  ActivityIndicator,
-  Modal,
+import {
+  StyleSheet,
+  View,
+  Text,
   Platform
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Colors } from '../theme/colors';
 import WizardProgress from '../components/WizardProgress';
+import ProgressModal from '../components/ProgressModal';
 import Step1Upload from '../components/Step1Upload';
 import Step2Sheets from '../components/Step2Sheets';
 import Step3Reference from '../components/Step3Reference';
@@ -30,6 +29,9 @@ export default function HomeScreen() {
   const [step, setStep] = useState(1);
   const [loading, setLoading] = useState(false);
   const [loadingMessage, setLoadingMessage] = useState('');
+  // Estados para ProgressModal de carga de archivos (Modo 1 — time-based)
+  const [loadingEstimatedMs, setLoadingEstimatedMs] = useState(3000);
+  const [loadingDone, setLoadingDone] = useState(false);
 
   // Estados de archivos y workbooks
   const [baseFile, setBaseFile] = useState<any>(null);
@@ -67,10 +69,27 @@ export default function HomeScreen() {
   // Bytes cacheados del archivo base (evita releer del disco al exportar)
   const [baseFileRawBytes, setBaseFileRawBytes] = useState<Uint8Array | null>(null);
 
+  // Tiempo que tomó cargar el archivo base (usado para estimar duración de la generación)
+  const [baseFileLoadTimeMs, setBaseFileLoadTimeMs] = useState<number | null>(null);
+
   // Paso 1: Archivo seleccionado
   const handleFileSelected = async (isBase: boolean, file: any) => {
+    // Estimar duración según tamaño (~1 byte/ms ≈ 1MB/s para XLSX.read)
+    const fileSizeBytes: number = (file as any).size || 0;
+    const estimatedMs = isBase
+      ? Math.max(1500, fileSizeBytes / 1000)
+      : Math.max(1200, baseFileLoadTimeMs
+          ? baseFileLoadTimeMs * (fileSizeBytes / Math.max(1, (baseFile as any)?.size || fileSizeBytes))
+          : fileSizeBytes / 1000);
+
+    setLoadingDone(false);
+    setLoadingEstimatedMs(estimatedMs);
     setLoading(true);
     setLoadingMessage(isBase ? 'Analizando archivo Principal...' : 'Analizando archivo de Datos Nuevos...');
+
+    // Tick para que React renderice el modal ANTES de que XLSX.read bloquee el JS thread
+    await new Promise(resolve => setTimeout(resolve, 80));
+    const opStart = Date.now();
     try {
       const { workbook: wb, rawBytes } = await parseExcelFile(file.uri);
       if (isBase) {
@@ -79,6 +98,7 @@ export default function HomeScreen() {
         setBaseSheets(wb.SheetNames);
         setSelectedBaseSheet(wb.SheetNames[0] || '');
         setBaseFileRawBytes(rawBytes);
+        setBaseFileLoadTimeMs(Date.now() - opStart);
       } else {
         setMergeFile(file);
         setMergeWorkbook(wb);
@@ -88,6 +108,9 @@ export default function HomeScreen() {
     } catch (e: any) {
       alert(e.message);
     } finally {
+      // Señalar done → ProgressModal fillea a 100% con withTiming (UI thread)
+      setLoadingDone(true);
+      await new Promise(resolve => setTimeout(resolve, 900));
       setLoading(false);
     }
   };
@@ -96,6 +119,8 @@ export default function HomeScreen() {
   const handleStep2Next = () => {
     setLoading(true);
     setLoadingMessage('Analizando estructura de hojas...');
+    setLoadingDone(false);
+    setLoadingEstimatedMs(400);
     try {
       const baseSheet = baseWorkbook.Sheets[selectedBaseSheet];
       const mergeSheet = mergeWorkbook.Sheets[selectedMergeSheet];
@@ -125,6 +150,7 @@ export default function HomeScreen() {
         setSelectedColumn(firstCommon);
       }
 
+      setLoadingDone(true);
       setStep(3);
     } catch (e: any) {
       alert('Error al extraer datos: ' + e.message);
@@ -145,6 +171,8 @@ export default function HomeScreen() {
   const handleStep5Next = () => {
     setLoading(true);
     setLoadingMessage('Cruzando y estructurando registros...');
+    setLoadingDone(false);
+    setLoadingEstimatedMs(600);
     try {
       const result = performMerge(
         baseData,
@@ -158,6 +186,7 @@ export default function HomeScreen() {
       setMergedData(result.mergedData);
       setNewColumns(result.newColumns);
       setStats(result.stats);
+      setLoadingDone(true);
       setStep(6);
     } catch (e: any) {
       alert('Error al combinar los datos: ' + e.message);
@@ -191,6 +220,7 @@ export default function HomeScreen() {
     setRowColorMap({});
     setPreserveColors([]);
     setBaseFileRawBytes(null);
+    setBaseFileLoadTimeMs(null);
   };
 
   return (
@@ -279,21 +309,21 @@ export default function HomeScreen() {
             preserveColors={preserveColors}
             rowColorMap={rowColorMap}
             baseFileRawBytes={baseFileRawBytes}
+            baseFileLoadTimeMs={baseFileLoadTimeMs}
             onRestart={handleRestart}
             onBack={() => setStep(6)}
           />
         )}
       </View>
 
-      {/* Modal de Carga */}
-      <Modal transparent={true} visible={loading} animationType="fade">
-        <View style={styles.loadingOverlay}>
-          <View style={styles.loadingBox}>
-            <ActivityIndicator size="large" color={Colors.secondary} />
-            <Text style={styles.loadingText}>{loadingMessage}</Text>
-          </View>
-        </View>
-      </Modal>
+      {/* Modal de Carga — Reanimated (UI thread, sobrevive bloqueo de XLSX.read) */}
+      <ProgressModal
+        visible={loading}
+        message={loadingMessage}
+        estimatedMs={loadingEstimatedMs}
+        done={loadingDone}
+        color={Colors.secondary}
+      />
     </SafeAreaView>
   );
 }
@@ -333,27 +363,5 @@ const styles = StyleSheet.create({
   },
   content: {
     flex: 1,
-  },
-  loadingOverlay: {
-    flex: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.75)',
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  loadingBox: {
-    backgroundColor: Colors.backgroundLight,
-    padding: 24,
-    borderRadius: 16,
-    borderWidth: 1,
-    borderColor: Colors.cardBorder,
-    alignItems: 'center',
-    width: 240,
-    gap: 16,
-  },
-  loadingText: {
-    color: Colors.text,
-    fontSize: 13,
-    fontWeight: '600',
-    textAlign: 'center',
   },
 });

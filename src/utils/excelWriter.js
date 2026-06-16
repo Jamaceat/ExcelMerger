@@ -63,10 +63,13 @@ export async function generateExcel(
   preloadedBytes = null,
   outputFileName = null,
   appendUnmatchedBaseToEnd = false,
+  onProgress = null,
 ) {
+  const report = (v) => { if (onProgress) onProgress(v); };
   try {
     let arrayBuffer;
 
+    report(0);
     // 1. Usar bytes pre-cargados si están disponibles (evita releer del disco)
     if (preloadedBytes) {
       arrayBuffer = Buffer.from(preloadedBytes);
@@ -248,6 +251,7 @@ export async function generateExcel(
         throw new Error('La opción de compartir no está disponible en este dispositivo móvil.');
       }
     }
+    report(1.0);
   } catch (error) {
     console.error('Error al generar Excel en EdwinCobra:', error);
     throw new Error('Error al escribir el archivo Excel: ' + error.message);
