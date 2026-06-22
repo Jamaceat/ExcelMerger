@@ -111,7 +111,7 @@ export default function Step6Download({
     await new Promise(resolve => setTimeout(resolve, 80));
     let success = false;
     try {
-      await generateExcel(
+      const result = await generateExcel(
         baseFile.uri,
         baseFile.name,
         mergedData,
@@ -131,11 +131,18 @@ export default function Step6Download({
       success = true;
       // Esperar a que la animación llegue al 100%
       await new Promise(resolve => setTimeout(resolve, 900));
+
+      if (result && result.type === 'saved') {
+        Alert.alert(
+          'Archivo Guardado',
+          'El archivo se ha guardado correctamente en la carpeta seleccionada.'
+        );
+      }
     } catch (error) {
       console.error('Error al generar Excel:', error);
       Alert.alert(
         'Error',
-        'No se pudo generar o compartir el archivo Excel. Detalles: ' + error.message
+        'No se pudo generar o guardar el archivo Excel. Detalles: ' + error.message
       );
     } finally {
       setGenerating(false);

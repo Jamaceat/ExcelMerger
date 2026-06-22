@@ -5,6 +5,7 @@
 
 import ExcelJS from 'exceljs';
 import { File as ExpoFile, Paths } from 'expo-file-system';
+import { StorageAccessFramework, writeAsStringAsync, EncodingType } from 'expo-file-system/legacy';
 import * as Sharing from 'expo-sharing';
 import { Buffer } from 'buffer';
 import { Platform } from 'react-native';
@@ -234,21 +235,56 @@ export async function generateExcel(
       link.click();
       document.body.removeChild(link);
       window.URL.revokeObjectURL(url);
+      report(1.0);
+      return { type: 'web' };
+    } else if (Platform.OS === 'android') {
+      const permissions = await StorageAccessFramework.requestDirectoryPermissionsAsync();
+      if (permissions.granted) {
+        const base64 = Buffer.from(outputBuffer).toString('base64');
+        const fileUri = await StorageAccessFramework.createFileAsync(
+          permissions.directoryUri,
+          finalOutputFileName,
+          'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+        );
+        await writeAsStringAsync(fileUri, base64, { encoding: EncodingType.Base64 });
+        report(1.0);
+        return { type: 'saved', uri: fileUri };
+      } else {
+        // Fallback a compartir si no da permisos o cancela
+        const file = new ExpoFile(Paths.cache, finalOutputFileName);
+        file.create({ overwrite: true });
+        file.write(new Uint8Array(outputBuffer));
+        const outputUri = file.uri;
+
+        if (await Sharing.isAvailableAsync()) {
+          await Sharing.shareAsync(outputUri, {
+            mimeType: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+            dialogTitle: 'EdwinCobra - Guardar Excel Combinado',
+            UTI: 'org.openxmlformats.spreadsheet-ml.sheet'
+          });
+          report(1.0);
+          return { type: 'shared' };
+        } else {
+          throw new Error('Permiso de carpeta denegado y opción de compartir no disponible.');
+        }
+      }
     } else {
+      // En iOS / otros, seguimos con Sharing.shareAsync que tiene la opción "Guardar en Archivos"
       const file = new ExpoFile(Paths.cache, finalOutputFileName);
       file.create({ overwrite: true });
       file.write(new Uint8Array(outputBuffer));
       const outputUri = file.uri;
 
-      // 10. Compartir el archivo nativamente usando Expo Sharing
       if (await Sharing.isAvailableAsync()) {
         await Sharing.shareAsync(outputUri, {
           mimeType: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
           dialogTitle: 'EdwinCobra - Guardar Excel Combinado',
           UTI: 'org.openxmlformats.spreadsheet-ml.sheet'
         });
+        report(1.0);
+        return { type: 'shared' };
       } else {
-        throw new Error('La opción de compartir no está disponible en este dispositivo móvil.');
+        throw new Error('La opción de guardar no está disponible en este dispositivo móvil.');
       }
     }
     report(1.0);
